@@ -52,7 +52,7 @@ void Board::print_board()
         printf("%2d ", y + 1);
         for (x = 0; x <= B_SIZE; x++)
         {
-            int c = board[(y + 1) * WIDTH + (x + 1)];
+            int c = this->board[(y + 1) * WIDTH + (x + 1)];
             printf("%s", str[c]);
         }
         printf("\n");
