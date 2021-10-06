@@ -134,6 +134,7 @@ public:
     int CountScore(int turn_color);
     int Playout(int turn_color);
     int PrimitiveMonteCalro(int color);
+    void AddMoves(int z, int color);
 } position;
 
 /// <summary>
@@ -583,6 +584,29 @@ int Position::PrimitiveMonteCalro(int color)
     return best_z;
 }
 
+/// <summary>
+/// 指し手を棋譜に記入
+/// </summary>
+/// <param name="z">座標</param>
+/// <param name="color">手番の色</param>
+void Position::AddMoves(int z, int color)
+{
+    // 石を置きます
+    int err = this->PutStone(z, color, kFillEyeOk);
+    // 非合法手なら強制終了
+    if (err != 0)
+    {
+        printf("Err!\n");
+        exit(0);
+    }
+    // 棋譜の末尾に記入
+    this->record[this->moves] = z;
+    // 棋譜のサイズを伸ばします
+    this->moves++;
+    // 盤表示
+    this->PrintBoard();
+}
+
 // following are for UCT(Upper Confidence Tree)
 // `UCT` - 探索と知識利用のバランスを取る手法
 
@@ -597,7 +621,7 @@ const int kChildSize = (kBoardSize * kBoardSize + 1);
 const int kNodeMax = 10000;
 
 /// <summary>
-/// no next node
+/// no next nodeList
 /// </summary>
 const int kNodeEmpty = -1;
 
@@ -607,10 +631,10 @@ const int kNodeEmpty = -1;
 const int kIllegalZ = -1;
 
 /// <summary>
-/// 手を保存するための構造体
+/// 手を保存するためのものです
 /// </summary>
-typedef struct
-{
+class Child {
+public:
     /// <summary>
     /// 手の場所（move position）
     /// </summary>
@@ -630,30 +654,34 @@ typedef struct
     /// ノードのリストのインデックス。次のノード（next node）を指す
     /// </summary>
     int next;
-} CHILD;
+};
 
 /// <summary>
-/// 局面を保存する構造体
+/// 局面を保存するためのものです
 /// </summary>
-typedef struct
-{
+class Node {
+public:
     /// <summary>
     /// 実際の子どもの数
     /// </summary>
     int child_num;
-    CHILD child[kChildSize];
+
+    Child children[kChildSize];
+
     /// <summary>
     /// 何回このノードに来たか（子の合計）
     /// </summary>
     int child_games_sum;
-} NODE;
+
+    void AddChild(int z);
+};
 
 // 以下、探索木全体を保存
 
 /// <summary>
 /// ノードのリスト
 /// </summary>
-NODE node[kNodeMax];
+Node nodeList[kNodeMax];
 
 /// <summary>
 /// ノードのリストのサイズ。登録局面数
@@ -671,20 +699,20 @@ int uct_loop = 1000;
 /// </summary>
 /// <param name="pN">局面</param>
 /// <param name="z">手の座標</param>
-void AddChild(NODE* pN, int z)
+void Node::AddChild(int z)
 {
     // 新しい要素のインデックス
-    int n = pN->child_num;
-    pN->child[n].z = z;
-    pN->child[n].games = 0;
-    pN->child[n].rate = 0;
-    pN->child[n].next = kNodeEmpty;
+    int n = this->child_num;
+    this->children[n].z = z;
+    this->children[n].games = 0;
+    this->children[n].rate = 0;
+    this->children[n].next = kNodeEmpty;
     // ノードのリストのサイズ更新
-    pN->child_num++;
+    this->child_num++;
 }
 
 /// <summary>
-/// create new node.
+/// create new nodeList.
 /// 空点を全部追加。
 /// PASSも追加。
 /// </summary>
@@ -692,7 +720,7 @@ void AddChild(NODE* pN, int z)
 int CreateNode()
 {
     int x, y, z;
-    NODE* pN;
+    Node* pN;
 
     // これ以上増やせません
     if (node_num == kNodeMax)
@@ -702,7 +730,7 @@ int CreateNode()
     }
 
     // 末尾の未使用の要素
-    pN = &node[node_num];
+    pN = &nodeList[node_num];
     pN->child_num = 0;
     pN->child_games_sum = 0;
 
@@ -713,9 +741,9 @@ int CreateNode()
             z = GetZ(x + 1, y + 1);
             if (position.Board[z] != 0)
                 continue;
-            AddChild(pN, z);
+            pN->AddChild(z);
         }
-    AddChild(pN, 0); // add PASS
+    pN->AddChild(0); // add PASS
 
     // 末尾に１つ追加した分、リストのサイズ１つ追加
     node_num++;
@@ -734,7 +762,7 @@ int CreateNode()
 /// <returns>ノードのリストのインデックス。選択した子ノードを指します</returns>
 int SelectBestUcb(int node_n)
 {
-    NODE* pN = &node[node_n];
+    Node* pN = &nodeList[node_n];
     int select = -1;
     double max_ucb = -999;
     double ucb = 0;
@@ -743,7 +771,7 @@ int SelectBestUcb(int node_n)
     // 子要素の数だけ繰り返します
     for (i = 0; i < pN->child_num; i++)
     {
-        CHILD* c = &pN->child[i];
+        Child* c = &pN->children[i];
         // 非合法手の座標なら無視
         if (c->z == kIllegalZ)
             continue;
@@ -783,10 +811,10 @@ int SelectBestUcb(int node_n)
 int SearchUct(int color, int node_n)
 {
     // この局面
-    NODE* pN = &node[node_n];
+    Node* pN = &nodeList[node_n];
 
     // 最善の一手（子ノード）
-    CHILD* c = NULL;
+    Child* c = NULL;
     int select, z, err, win;
 
     // とりあえず打ってみる
@@ -795,7 +823,7 @@ int SearchUct(int color, int node_n)
         // 最善の一手（子ノード）のインデックス
         select = SelectBestUcb(node_n);
         // 最善の一手（子ノード）
-        c = &pN->child[select];
+        c = &pN->children[select];
         // 最善の一手（子ノード）の座標
         z = c->z;
         // 石を置く
@@ -810,7 +838,7 @@ int SearchUct(int color, int node_n)
     // この一手が１度も試行されていなければ、プレイアウトします
     // c->games <= 10 とかにすればメモリを節約できます。
     // c->games <= 0 より強くなる場合もあります。
-    // playout in first time. <= 10 can reduce node.
+    // playout in first time. <= 10 can reduce nodeList.
     if (c->games <= 0)
     {
         // 手番をひっくり返してプレイアウト
@@ -846,7 +874,7 @@ int GetBestUct(int color)
 {
     int next, i, best_z, best_i = -1;
     int max = -999;
-    NODE* pN;
+    Node* pN;
 
     // ノードリストの要素数
     node_num = 0;
@@ -869,12 +897,12 @@ int GetBestUct(int color)
         memcpy(position.Board, board_copy, sizeof(position.Board));
     }
     // 次のノード
-    pN = &node[next];
+    pN = &nodeList[next];
     // 子ノード全部確認
     for (i = 0; i < pN->child_num; i++)
     {
         // 子ノード
-        CHILD* c = &pN->child[i];
+        Child* c = &pN->children[i];
         // 最大対局数（一番打たれた手ということ）の更新
         if (c->games > max)
         {
@@ -885,35 +913,12 @@ int GetBestUct(int color)
     }
 
     // ベストなノードの座標
-    best_z = pN->child[best_i].z;
+    best_z = pN->children[best_i].z;
 
     printf("best_z=%d,rate=%.4f,games=%d,playouts=%d,nodes=%d\n",
-        Get81(best_z), pN->child[best_i].rate, max, position.all_playouts, node_num);
+        Get81(best_z), pN->children[best_i].rate, max, position.all_playouts, node_num);
 
     return best_z;
-}
-
-/// <summary>
-/// 指し手を棋譜に記入
-/// </summary>
-/// <param name="z">座標</param>
-/// <param name="color">手番の色</param>
-void AddMoves(int z, int color)
-{
-    // 石を置きます
-    int err = position.PutStone(z, color, kFillEyeOk);
-    // 非合法手なら強制終了
-    if (err != 0)
-    {
-        printf("Err!\n");
-        exit(0);
-    }
-    // 棋譜の末尾に記入
-    position.record[position.moves] = z;
-    // 棋譜のサイズを伸ばします
-    position.moves++;
-    // 盤表示
-    position.PrintBoard();
 }
 
 /// <summary>
@@ -935,7 +940,7 @@ int main()
         position.all_playouts = 0;
         z = GetBestUct(color);
         // 棋譜へ書込み、および盤表示
-        AddMoves(z, color);
+        position.AddMoves(z, color);
         color = FlipColor(color);
     }
 
