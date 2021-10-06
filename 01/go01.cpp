@@ -2,20 +2,20 @@
 #include <stdlib.h>
 
 // n路盤
-#define B_SIZE 9
+const int kBoardSize = 9;
 
 // 両端に番兵込みの幅
-#define WIDTH (B_SIZE + 2)
+const int kWidth = (kBoardSize + 2);
 
 // 番兵込みの盤の面積
-#define BOARD_MAX (WIDTH * WIDTH)
+const int kBoardMax = (kWidth * kWidth);
 
-class Board {
+class Position {
 public:
     /// <summary>
     /// 盤
     /// </summary>
-    int board[BOARD_MAX] = {
+    int Board[kBoardMax] = {
         3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
         3, 2, 1, 1, 0, 1, 0, 0, 0, 0, 3,
         3, 2, 2, 1, 1, 0, 1, 2, 0, 0, 3,
@@ -28,31 +28,31 @@ public:
         3, 0, 0, 0, 0, 0, 2, 1, 0, 0, 3,
         3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 };
 
-    void print_board();
+    void PrintBoard();
 };
 
 
 /// <summary>
 /// 盤の描画
 /// </summary>
-void Board::print_board()
+void Position::PrintBoard()
 {
     int x, y;
     const char* str[4] = { ".", "X", "O", "#" };
 
     // 筋の表示
     printf("   ");
-    for (x = 0; x < B_SIZE; x++)
+    for (x = 0; x < kBoardSize; x++)
         printf("%d", x + 1);
     printf("\n");
 
     // 盤部の表示
-    for (y = 0; y < B_SIZE; y++)
+    for (y = 0; y < kBoardSize; y++)
     {
         printf("%2d ", y + 1);
-        for (x = 0; x <= B_SIZE; x++)
+        for (x = 0; x <= kBoardSize; x++)
         {
-            int c = this->board[(y + 1) * WIDTH + (x + 1)];
+            int c = this->Board[(y + 1) * kWidth + (x + 1)];
             printf("%s", str[c]);
         }
         printf("\n");
@@ -65,8 +65,8 @@ void Board::print_board()
 /// <returns>エラーコード。正常時は0</returns>
 int main()
 {
-    Board boardObject = Board();
+    Position position = Position();
 
-    boardObject.print_board();
+    position.PrintBoard();
     return 0;
 }
