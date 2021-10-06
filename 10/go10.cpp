@@ -230,16 +230,6 @@ public:
 } position;
 
 /// <summary>
-/// UCTで使われる経路（パス）
-/// </summary>
-int path[kDMax];
-
-/// <summary>
-/// UCTで使われる経路（パス）の先頭がらn番目(0開始)
-/// </summary>
-int depth;
-
-/// <summary>
 /// count_liberty関数の中で呼び出されます。再帰
 /// </summary>
 /// <param name="tz">着手（開始）座標</param>
@@ -764,108 +754,6 @@ char* pattern3x3[] = {
 
     NULL };
 
-
-/// <summary>
-/// プレイアウトします
-/// </summary>
-/// <param name="turn_color">手番の石の色</param>
-/// <returns>黒の勝ちなら1、負けなら0</returns>
-int Position::Playout(int turn_color)
-{
-    int color = turn_color;
-
-    // １つ前の着手の座標
-    int previous_z = 0;
-
-    // ループ・カウンタ
-    int loop;
-    int loop_max = kBoardSize * kBoardSize + 200; // for triple ko
-
-    all_playouts++;
-
-    for (loop = 0; loop < loop_max; loop++)
-    {
-        // all empty points are candidates.
-        // 確率的に空点を選ぶ仕組み？
-        // [0]...z, [1]...probability
-        int empty[kBoardMax][2];
-
-        // 配列のインデックス
-        int empty_num = 0;
-        // 空点を選ぶ確率？
-        int prob_sum = 0;
-
-        int x, y, z, err, pr;
-        // 壁を除く盤上の全ての空点の(座標,確率)を empty配列にセットします
-        for (y = 0; y < kBoardSize; y++)
-            for (x = 0; x < kBoardSize; x++)
-            {
-                int z = GetZ(x + 1, y + 1);
-                if (Board[z] != 0)
-                    continue;
-                empty[empty_num][0] = z;
-                // 空点を選ぶ確率？
-                pr = boardPattern3x3.GetProb(z, previous_z, color);
-                empty[empty_num][1] = pr;
-                prob_sum += pr;
-                empty_num++;
-            }
-        for (;;)
-        {
-            int i = 0;
-            // もし空点がなければ、パス
-            if (empty_num == 0)
-            {
-                z = 0;
-            }
-            else
-            {
-                // 確率的に空点を選んでいる？
-                int r = rand() % prob_sum;
-                int sum = 0;
-                for (i = 0; i < empty_num; i++)
-                {
-                    sum += empty[i][1]; // 0,1,2   [0]=1, [1]=1, [2]=1
-                    if (sum > r)
-                        break;
-                }
-                if (i == empty_num)
-                {
-                    Prt("Err! prob_sum=%d,sum=%d,r=%d,r=%d\n", prob_sum, sum, r, i);
-                    exit(0);
-                }
-                z = empty[i][0];
-            }
-            err = PutStone(z, color, kFillEyeErr);
-            if (err == 0)
-                break; // pass is ok.
-            // もし空点に石を置くと正常終了しなかったなら、残りの座標で続行します
-            prob_sum -= empty[i][1];
-            empty[i][0] = empty[empty_num - 1][0]; // err, delete
-            empty[i][1] = empty[empty_num - 1][1];
-            empty_num--;
-        }
-
-        // テストでプレイアウトするのなら、棋譜に手を記録します
-        if (flag_test_playout)
-            record[moves++] = z;
-
-        // 経路（パス）の深さに配列サイズ上まだ余裕があれば、着手点を記憶します
-        if (depth < kDMax)
-            path[depth++] = z;
-
-        // もしパスが連続したら対局終了
-        if (z == 0 && previous_z == 0)
-            break; // continuous pass
-
-        // そうでなければ盤を表示して手番を変えて続行
-        previous_z = z;
-        //  Prt("loop=%d,z=%s,c=%d,empty_num=%d,ko_z=%d\n",loop,GetCharZ(z),color,empty_num,ko_z);
-        color = FlipColor(color);
-    }
-    return CountScore(turn_color);
-}
-
 /// <summary>
 /// 3x3パターンを作ってる？
 /// 1つのパターンを回転させて、種類を増やしている？
@@ -1267,6 +1155,16 @@ public:
     /// </summary>
     int node_num = 0;
 
+    /// <summary>
+    /// UCTで使われる経路（パス）
+    /// </summary>
+    int path[kDMax];
+
+    /// <summary>
+    /// UCTで使われる経路（パス）の先頭がらn番目(0開始)
+    /// </summary>
+    int depth;
+
     int CreateNode(int prev_z);
     int SelectBestUcb(int node_n);
     int SearchUct(int color, int node_n);
@@ -1275,6 +1173,108 @@ public:
     void Selfplay();
 
 }uct;
+
+
+/// <summary>
+/// プレイアウトします
+/// </summary>
+/// <param name="turn_color">手番の石の色</param>
+/// <returns>黒の勝ちなら1、負けなら0</returns>
+int Position::Playout(int turn_color)
+{
+    int color = turn_color;
+
+    // １つ前の着手の座標
+    int previous_z = 0;
+
+    // ループ・カウンタ
+    int loop;
+    int loop_max = kBoardSize * kBoardSize + 200; // for triple ko
+
+    all_playouts++;
+
+    for (loop = 0; loop < loop_max; loop++)
+    {
+        // all empty points are candidates.
+        // 確率的に空点を選ぶ仕組み？
+        // [0]...z, [1]...probability
+        int empty[kBoardMax][2];
+
+        // 配列のインデックス
+        int empty_num = 0;
+        // 空点を選ぶ確率？
+        int prob_sum = 0;
+
+        int x, y, z, err, pr;
+        // 壁を除く盤上の全ての空点の(座標,確率)を empty配列にセットします
+        for (y = 0; y < kBoardSize; y++)
+            for (x = 0; x < kBoardSize; x++)
+            {
+                int z = GetZ(x + 1, y + 1);
+                if (Board[z] != 0)
+                    continue;
+                empty[empty_num][0] = z;
+                // 空点を選ぶ確率？
+                pr = boardPattern3x3.GetProb(z, previous_z, color);
+                empty[empty_num][1] = pr;
+                prob_sum += pr;
+                empty_num++;
+            }
+        for (;;)
+        {
+            int i = 0;
+            // もし空点がなければ、パス
+            if (empty_num == 0)
+            {
+                z = 0;
+            }
+            else
+            {
+                // 確率的に空点を選んでいる？
+                int r = rand() % prob_sum;
+                int sum = 0;
+                for (i = 0; i < empty_num; i++)
+                {
+                    sum += empty[i][1]; // 0,1,2   [0]=1, [1]=1, [2]=1
+                    if (sum > r)
+                        break;
+                }
+                if (i == empty_num)
+                {
+                    Prt("Err! prob_sum=%d,sum=%d,r=%d,r=%d\n", prob_sum, sum, r, i);
+                    exit(0);
+                }
+                z = empty[i][0];
+            }
+            err = PutStone(z, color, kFillEyeErr);
+            if (err == 0)
+                break; // pass is ok.
+            // もし空点に石を置くと正常終了しなかったなら、残りの座標で続行します
+            prob_sum -= empty[i][1];
+            empty[i][0] = empty[empty_num - 1][0]; // err, delete
+            empty[i][1] = empty[empty_num - 1][1];
+            empty_num--;
+        }
+
+        // テストでプレイアウトするのなら、棋譜に手を記録します
+        if (flag_test_playout)
+            record[moves++] = z;
+
+        // 経路（パス）の深さに配列サイズ上まだ余裕があれば、着手点を記憶します
+        if (uct.depth < kDMax)
+            uct.path[uct.depth++] = z;
+
+        // もしパスが連続したら対局終了
+        if (z == 0 && previous_z == 0)
+            break; // continuous pass
+
+        // そうでなければ盤を表示して手番を変えて続行
+        previous_z = z;
+        //  Prt("loop=%d,z=%s,c=%d,empty_num=%d,ko_z=%d\n",loop,GetCharZ(z),color,empty_num,ko_z);
+        color = FlipColor(color);
+    }
+    return CountScore(turn_color);
+}
 
 /// <summary>
 /// create new node.
@@ -1626,10 +1626,15 @@ void UpperConfidenceTree::Selfplay()
     position.PrintSgf();
 }
 
-// GTPプロトコルの1行を読込むのに十分な文字列サイズ
-#define STR_MAX 256
-// スペース区切りで3つ分まで読込む？
-#define TOKEN_MAX 3
+/// <summary>
+/// GTPプロトコルの1行を読込むのに十分な文字列サイズ
+/// </summary>
+const int kStrMax = 256;
+
+/// <summary>
+/// スペース区切りで3つ分まで読込む？
+/// </summary>
+const int kTokenMax = 3;
 
 /// <summary>
 /// プログラムはここから始まります
@@ -1638,9 +1643,9 @@ void UpperConfidenceTree::Selfplay()
 int main()
 {
     // 入力文字列バッファー
-    char str[STR_MAX];
+    char str[kStrMax];
     // スプリットされた文字列のリスト
-    char sa[TOKEN_MAX][STR_MAX];
+    char sa[kTokenMax][kStrMax];
     // コマンドはスペース区切り
     char seps[] = " ";
     // スプリットされた文字列１つ
@@ -1678,7 +1683,7 @@ int main()
     for (;;)
     {
         // 標準入力から文字列読取
-        if (fgets(str, STR_MAX, stdin) == NULL)
+        if (fgets(str, kStrMax, stdin) == NULL)
             break;
 
         //  Prt("gtp<-%s",str);
@@ -1690,7 +1695,7 @@ int main()
         {
             strcpy(sa[count], token);
             count++;
-            if (count == TOKEN_MAX)
+            if (count == kTokenMax)
                 break;
             token = strtok(NULL, seps);
         }
