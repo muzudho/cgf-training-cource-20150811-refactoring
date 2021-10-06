@@ -3,52 +3,21 @@
 #include <time.h>
 
 // n路盤
-#define B_SIZE 9
+const int kBoardSize = 9;
 
 // 両端に番兵込みの幅
-#define WIDTH (B_SIZE + 2)
+const int kWidth = (kBoardSize + 2);
 
 // 番兵込みの盤の面積
-#define BOARD_MAX (WIDTH * WIDTH)
-
-/// <summary>
-/// 盤
-/// </summary>
-int board[BOARD_MAX] = {
-    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 };
+const int kBoardMax = (kWidth * kWidth);
 
 /// <summary>
 /// 右、下、左、上
 /// </summary>
-int dir4[4] = { +1, +WIDTH, -1, -WIDTH };
-
-/// <summary>
-/// コウの座標
-/// </summary>
-int ko_z;
+const int kDir4[4] = {+1, +kWidth, -1, -kWidth};
 
 // 指し手の要素数
-#define MAX_MOVES 1000
-
-/// <summary>
-/// 棋譜
-/// </summary>
-int record[MAX_MOVES];
-
-/// <summary>
-/// n手目。1手目が0
-/// </summary>
-int moves = 0;
+const int kMaxMoves = 1000;
 
 /// <summary>
 /// x, y を z（座標；配列のインデックス） に変換
@@ -56,9 +25,9 @@ int moves = 0;
 /// <param name="x">is (1 &lt;= x &lt;= 9)</param>
 /// <param name="y">is (1 &lt;= y &lt;= 9)</param>
 /// <returns></returns>
-int get_z(int x, int y)
+int GetZ(int x, int y)
 {
-    return y * WIDTH + x;
+    return y * kWidth + x;
 }
 
 /// <summary>
@@ -66,10 +35,10 @@ int get_z(int x, int y)
 /// </summary>
 /// <param name="z">座標</param>
 /// <returns>人が読める形の座標</returns>
-int get81(int z)
+int Get81(int z)
 {
-    int y = z / WIDTH;
-    int x = z - y * WIDTH; // 106 = 9*11 + 7 = (x,y)=(7,9) -> 79
+    int y = z / kWidth;
+    int x = z - y * kWidth; // 106 = 9*11 + 7 = (x,y)=(7,9) -> 79
     if (z == 0)
         return 0;
     return x * 10 + y; // x*100+y for 19x19
@@ -80,15 +49,58 @@ int get81(int z)
 /// </summary>
 /// <param name="col">石の色</param>
 /// <returns>反転した石の色</returns>
-int flip_color(int col)
+int FlipColor(int col)
 {
     return 3 - col;
 }
 
-/// <summary>
-/// 呼吸点を探索するアルゴリズムで使用
-/// </summary>
-int check_board[BOARD_MAX];
+class Position
+{
+public:
+    /// <summary>
+    /// 盤
+    /// </summary>
+    int board[kBoardMax] = {
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
+
+    /// <summary>
+    /// コウの座標
+    /// </summary>
+    int ko_z = 0;
+
+    /// <summary>
+    /// 棋譜
+    /// </summary>
+    int record[kMaxMoves] = {0};
+
+    /// <summary>
+    /// n手目。1手目が0
+    /// </summary>
+    int moves = 0;
+
+    /// <summary>
+    /// 呼吸点を探索するアルゴリズムで使用
+    /// </summary>
+    int check_board[kBoardMax] = {0};
+
+    void CountLibertySub(int tz, int color, int *p_liberty, int *p_stone);
+    void CountLiberty(int tz, int *p_liberty, int *p_stone);
+    void TakeStone(int tz, int color);
+    int PutStone(int tz, int color);
+    void PrintBoard();
+    int GetEmptyZ();
+    int PlayOneMove(int color);
+};
 
 /// <summary>
 /// count_liberty関数の中で呼び出されます。再帰
@@ -97,7 +109,7 @@ int check_board[BOARD_MAX];
 /// <param name="color">連の色</param>
 /// <param name="p_liberty">呼吸点の数</param>
 /// <param name="p_stone">連の石の数</param>
-void count_liberty_sub(int tz, int color, int* p_liberty, int* p_stone)
+void Position::CountLibertySub(int tz, int color, int *p_liberty, int *p_stone)
 {
     int z, i;
 
@@ -106,7 +118,7 @@ void count_liberty_sub(int tz, int color, int* p_liberty, int* p_stone)
     for (i = 0; i < 4; i++)
     {
         // 隣の座標
-        z = tz + dir4[i];
+        z = tz + kDir4[i];
 
         // もし、チェック済みの交点なら、無視します
         if (check_board[z])
@@ -121,7 +133,7 @@ void count_liberty_sub(int tz, int color, int* p_liberty, int* p_stone)
 
         // もし、着手した石と同じ色なら、再帰します
         if (board[z] == color)
-            count_liberty_sub(z, color, p_liberty, p_stone);
+            CountLibertySub(z, color, p_liberty, p_stone);
     }
 }
 
@@ -131,16 +143,16 @@ void count_liberty_sub(int tz, int color, int* p_liberty, int* p_stone)
 /// <param name="tz">着手座標</param>
 /// <param name="p_liberty">呼吸点の数</param>
 /// <param name="p_stone">連の石の数</param>
-void count_liberty(int tz, int* p_liberty, int* p_stone)
+void Position::CountLiberty(int tz, int *p_liberty, int *p_stone)
 {
     int i;
     *p_liberty = *p_stone = 0;
 
     // チェックボードのクリア
-    for (i = 0; i < BOARD_MAX; i++)
+    for (i = 0; i < kBoardMax; i++)
         check_board[i] = 0;
 
-    count_liberty_sub(tz, board[tz], p_liberty, p_stone);
+    CountLibertySub(tz, board[tz], p_liberty, p_stone);
 }
 
 /// <summary>
@@ -148,16 +160,16 @@ void count_liberty(int tz, int* p_liberty, int* p_stone)
 /// </summary>
 /// <param name="tz">着手座標</param>
 /// <param name="color">石の色</param>
-void take_stone(int tz, int color)
+void Position::TakeStone(int tz, int color)
 {
     int z, i;
 
     board[tz] = 0;
     for (i = 0; i < 4; i++)
     {
-        z = tz + dir4[i];
+        z = tz + kDir4[i];
         if (board[z] == color)
-            take_stone(z, color);
+            TakeStone(z, color);
     }
 }
 
@@ -167,13 +179,13 @@ void take_stone(int tz, int color)
 /// <param name="tz">着手座標。0ならパス</param>
 /// <param name="color">石の色</param>
 /// <returns>エラーコード。success returns 0</returns>
-int put_stone(int tz, int color)
+int Position::PutStone(int tz, int color)
 {
     // 検索情報を覚えておく配列
     int around[4][3];
 
     // 相手の石の色
-    int un_col = flip_color(color);
+    int un_col = FlipColor(color);
 
     // 空白に石を置いたら1
     int space = 0;
@@ -213,7 +225,7 @@ int put_stone(int tz, int color)
         around[i][0] = around[i][1] = around[i][2] = 0;
 
         // 隣の座標
-        z = tz + dir4[i];
+        z = tz + kDir4[i];
 
         c = board[z]; // color
 
@@ -230,7 +242,7 @@ int put_stone(int tz, int color)
             continue;
 
         // 呼吸点の数と、連の石の数を数えます
-        count_liberty(z, &liberty, &stone);
+        CountLiberty(z, &liberty, &stone);
         around[i][0] = liberty;
         around[i][1] = stone;
         around[i][2] = c;
@@ -267,9 +279,9 @@ int put_stone(int tz, int color)
     {
         int lib = around[i][0];
         int c = around[i][2];
-        if (c == un_col && lib == 1 && board[tz + dir4[i]])
+        if (c == un_col && lib == 1 && board[tz + kDir4[i]])
         {
-            take_stone(tz + dir4[i], un_col);
+            TakeStone(tz + kDir4[i], un_col);
         }
     }
 
@@ -277,7 +289,7 @@ int put_stone(int tz, int color)
     board[tz] = color;
 
     // 着手点を含む連の呼吸点の数を数えます
-    count_liberty(tz, &liberty, &stone);
+    CountLiberty(tz, &liberty, &stone);
     // 石を1個取ったらコウかも知れない
     if (capture_sum == 1 && stone == 1 && liberty == 1)
         ko_z = ko_maybe;
@@ -290,27 +302,27 @@ int put_stone(int tz, int color)
 /// <summary>
 /// 盤の描画
 /// </summary>
-void print_board()
+void Position::PrintBoard()
 {
     int x, y;
-    const char* str[4] = { ".", "X", "O", "#" };
+    const char *str[4] = {".", "X", "O", "#"};
 
     // 筋の符号の表示
     printf("   ");
-    for (x = 0; x < B_SIZE; x++)
+    for (x = 0; x < kBoardSize; x++)
         printf("%d", x + 1);
     printf("\n");
 
     // 盤の各行の表示
-    for (y = 0; y < B_SIZE; y++)
+    for (y = 0; y < kBoardSize; y++)
     {
         printf("%2d ", y + 1);
-        for (x = 0; x < B_SIZE; x++)
+        for (x = 0; x < kBoardSize; x++)
         {
-            printf("%s", str[board[get_z(x + 1, y + 1)]]);
+            printf("%s", str[board[GetZ(x + 1, y + 1)]]);
         }
         if (y == 4)
-            printf("  ko_z=%d", get81(ko_z));
+            printf("  ko_z=%d", Get81(ko_z));
         printf("\n");
     }
 }
@@ -319,7 +331,7 @@ void print_board()
 /// 空点の座標をランダムに取得
 /// </summary>
 /// <returns>空点の座標</returns>
-int get_empty_z()
+int Position::GetEmptyZ()
 {
     int x = 0, y = 0, z = 0;
 
@@ -327,9 +339,9 @@ int get_empty_z()
     // 正確な自然数の乱数は、範囲を指定して　続けて或る程度の回数トライすると　範囲の中のすべての要素を巡ります
     for (;;)
     {
-        x = (rand() % B_SIZE) + 1;
-        y = (rand() % B_SIZE) + 1;
-        z = get_z(x, y);
+        x = (rand() % kBoardSize) + 1;
+        y = (rand() % kBoardSize) + 1;
+        z = GetZ(x, y);
         if (board[z] == 0)
             break;
     }
@@ -341,20 +353,20 @@ int get_empty_z()
 /// </summary>
 /// <param name="color">石の色</param>
 /// <returns>座標</returns>
-int play_one_move(int color)
+int Position::PlayOneMove(int color)
 {
     int i, z, err;
     for (i = 0; i < 100; i++)
     {
-        z = get_empty_z();
-        err = put_stone(z, color);
+        z = GetEmptyZ();
+        err = PutStone(z, color);
         if (err == 0)
             return z;
     }
 
     // パス
     z = 0;
-    put_stone(0, color);
+    PutStone(0, color);
     return z;
 }
 
@@ -367,27 +379,29 @@ int main()
     int color = 1;
     int z;
 
+    Position position = Position();
+
     //srand( (unsigned)time( NULL ) );
     for (;;)
     {
-        z = play_one_move(color);
-        printf("moves=%4d, color=%d, z=%d\n", moves, color, get81(z));
-        print_board();
+        z = position.PlayOneMove(color);
+        printf("moves=%4d, color=%d, z=%d\n", position.moves, color, Get81(z));
+        position.PrintBoard();
 
-        record[moves] = z;
-        moves++;
-        if (moves == MAX_MOVES)
+        position.record[position.moves] = z;
+        position.moves++;
+        if (position.moves == kMaxMoves)
         {
             printf("max moves!\n");
             break;
         }
-        if (z == 0 && moves >= 2 && record[moves - 2] == 0)
+        if (z == 0 && position.moves >= 2 && position.record[position.moves - 2] == 0)
         {
             printf("two pass\n");
             break;
         }
 
-        color = flip_color(color);
+        color = FlipColor(color);
     }
 
     return 0;
