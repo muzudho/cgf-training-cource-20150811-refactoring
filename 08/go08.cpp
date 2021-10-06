@@ -676,23 +676,6 @@ public:
     void AddChild(int z);
 };
 
-// 以下、探索木全体を保存
-
-/// <summary>
-/// ノードのリスト
-/// </summary>
-Node nodeList[kNodeMax];
-
-/// <summary>
-/// ノードのリストのサイズ。登録局面数
-/// </summary>
-int node_num = 0;
-
-/// <summary>
-/// number of uct loop
-/// </summary>
-int uct_loop = 1000;
-
 /// <summary>
 /// リストの末尾に要素を追加。手を追加。
 /// この手を打った後のノードは、なし
@@ -711,26 +694,56 @@ void Node::AddChild(int z)
     this->child_num++;
 }
 
+
+// 以下、探索木全体を保存
+
+/// <summary>
+/// number of uct loop
+/// </summary>
+int uct_loop = 1000;
+
+/// <summary>
+/// `UCT` - 探索と知識利用のバランスを取る手法
+/// </summary>
+class UpperConfidenceTree {
+public:
+
+    /// <summary>
+    /// ノードのリスト
+    /// </summary>
+    Node nodeList[kNodeMax];
+
+    /// <summary>
+    /// ノードのリストのサイズ。登録局面数
+    /// </summary>
+    int node_num = 0;
+
+    int CreateNode();
+    int SelectBestUcb(int node_n);
+    int SearchUct(int color, int node_n);
+    int GetBestUct(int color);
+} uct;
+
 /// <summary>
 /// create new nodeList.
 /// 空点を全部追加。
 /// PASSも追加。
 /// </summary>
 /// <returns>ノードのリストのインデックス。作られたノードを指す。最初は0から</returns>
-int CreateNode()
+int UpperConfidenceTree::CreateNode()
 {
     int x, y, z;
     Node* pN;
 
     // これ以上増やせません
-    if (node_num == kNodeMax)
+    if (this->node_num == kNodeMax)
     {
         printf("node over Err\n");
         exit(0);
     }
 
     // 末尾の未使用の要素
-    pN = &nodeList[node_num];
+    pN = &this->nodeList[this->node_num];
     pN->child_num = 0;
     pN->child_games_sum = 0;
 
@@ -746,10 +759,10 @@ int CreateNode()
     pN->AddChild(0); // add PASS
 
     // 末尾に１つ追加した分、リストのサイズ１つ追加
-    node_num++;
+    this->node_num++;
 
     // 最後の要素を指すインデックスを返します
-    return node_num - 1;
+    return this->node_num - 1;
 }
 
 /// <summary>
@@ -760,9 +773,9 @@ int CreateNode()
 /// </summary>
 /// <param name="node_n">ノードのリストのインデックス</param>
 /// <returns>ノードのリストのインデックス。選択した子ノードを指します</returns>
-int SelectBestUcb(int node_n)
+int UpperConfidenceTree::SelectBestUcb(int node_n)
 {
-    Node* pN = &nodeList[node_n];
+    Node* pN = &this->nodeList[node_n];
     int select = -1;
     double max_ucb = -999;
     double ucb = 0;
@@ -808,10 +821,10 @@ int SelectBestUcb(int node_n)
 /// <param name="color">手番の色。最初は考えているプレイヤーの色</param>
 /// <param name="node_n">ノードのリストのインデックス。最初は0</param>
 /// <returns>手番の勝率</returns>
-int SearchUct(int color, int node_n)
+int UpperConfidenceTree::SearchUct(int color, int node_n)
 {
     // この局面
-    Node* pN = &nodeList[node_n];
+    Node* pN = &this->nodeList[node_n];
 
     // 最善の一手（子ノード）
     Child* c = NULL;
@@ -821,7 +834,7 @@ int SearchUct(int color, int node_n)
     for (;;)
     {
         // 最善の一手（子ノード）のインデックス
-        select = SelectBestUcb(node_n);
+        select = this->SelectBestUcb(node_n);
         // 最善の一手（子ノード）
         c = &pN->children[select];
         // 最善の一手（子ノード）の座標
@@ -849,7 +862,7 @@ int SearchUct(int color, int node_n)
     {
         // 子ノードが葉なら、さらに延長
         if (c->next == kNodeEmpty)
-            c->next = CreateNode();
+            c->next = this->CreateNode();
 
         // 手番をひっくり返して UCT探索（ネガマックス形式）。勝率はひっくり返して格納
         win = -SearchUct(FlipColor(color), c->next);
@@ -870,16 +883,16 @@ int SearchUct(int color, int node_n)
 /// </summary>
 /// <param name="color">手番の色</param>
 /// <returns>一番良く打たれた一手の座標</returns>
-int GetBestUct(int color)
+int UpperConfidenceTree::GetBestUct(int color)
 {
     int next, i, best_z, best_i = -1;
     int max = -999;
     Node* pN;
 
     // ノードリストの要素数
-    node_num = 0;
+    this->node_num = 0;
     // 次のノードのインデックス。ここでは0。現図を作成しています
-    next = CreateNode();
+    next = this->CreateNode();
 
     // とりあえず UCT探索（search_uct）を、uct_loop回繰り返します
     for (i = 0; i < uct_loop; i++)
@@ -890,14 +903,14 @@ int GetBestUct(int color)
         memcpy(board_copy, position.Board, sizeof(position.Board));
 
         // UCT探索
-        SearchUct(color, next);
+        this->SearchUct(color, next);
 
         // 現図を復元
         position.ko_z = ko_z_copy;
         memcpy(position.Board, board_copy, sizeof(position.Board));
     }
     // 次のノード
-    pN = &nodeList[next];
+    pN = &this->nodeList[next];
     // 子ノード全部確認
     for (i = 0; i < pN->child_num; i++)
     {
@@ -916,7 +929,7 @@ int GetBestUct(int color)
     best_z = pN->children[best_i].z;
 
     printf("best_z=%d,rate=%.4f,games=%d,playouts=%d,nodes=%d\n",
-        Get81(best_z), pN->children[best_i].rate, max, position.all_playouts, node_num);
+        Get81(best_z), pN->children[best_i].rate, max, position.all_playouts, this->node_num);
 
     return best_z;
 }
@@ -938,7 +951,7 @@ int main()
     for (i = 0; i < 2; i++)
     {
         position.all_playouts = 0;
-        z = GetBestUct(color);
+        z = uct.GetBestUct(color);
         // 棋譜へ書込み、および盤表示
         position.AddMoves(z, color);
         color = FlipColor(color);
