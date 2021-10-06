@@ -1,13 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// n路盤
+/// <summary>
+/// n路盤
+/// </summary>
 const int kBoardSize = 9;
 
-// 両端に番兵込みの幅
+/// <summary>
+/// 両端に番兵込みの幅
+/// </summary>
 const int kWidth = (kBoardSize + 2);
 
-// 番兵込みの盤の面積
+/// <summary>
+/// 番兵込みの盤の面積
+/// </summary>
 const int kBoardMax = (kWidth* kWidth);
 
 /// <summary>
@@ -50,6 +56,9 @@ int FlipColor(int col)
     return 3 - col;
 }
 
+/// <summary>
+/// 局面
+/// </summary>
 class Position {
 public:
     /// <summary>
