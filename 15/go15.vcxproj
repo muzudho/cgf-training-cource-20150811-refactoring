@@ -122,6 +122,7 @@
     <ClCompile Include="go15.cpp" />
     <ClCompile Include="node.cpp" />
     <ClCompile Include="position.cpp" />
+    <ClCompile Include="randXorShift.cpp" />
     <ClCompile Include="timeMan.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -130,6 +131,7 @@
     <ClInclude Include="go15.h" />
     <ClInclude Include="node.h" />
     <ClInclude Include="position.h" />
+    <ClInclude Include="randXorShift.h" />
     <ClInclude Include="timeMan.h" />
     <ClInclude Include="upperConfidenceTree.h" />
   </ItemGroup>

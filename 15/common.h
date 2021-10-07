@@ -36,3 +36,10 @@ char *GetCharZ(int z);
 /// <param name="fmt">書式か？</param>
 /// <param name="">可変長引数</param>
 void Prt(const char *fmt, ...);
+
+/// <summary>
+/// Go Text Protocol のコマンドを標準出力に出力します
+/// </summary>
+/// <param name="fmt">書式か？</param>
+/// <param name="">可変長引数</param>
+void SendGtp(const char* fmt, ...);

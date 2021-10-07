@@ -12,6 +12,7 @@
 #include "upperConfidenceTree.h"
 #include "position.h"
 #include "common.h"
+#include "randXorShift.h"
 
 Position position = Position();
 
@@ -24,32 +25,6 @@ int path[kDMax];
 /// UCTで使われる経路（パス）の先頭がらn番目(0開始)
 /// </summary>
 int depth;
-
-/// <summary>
-/// Go Text Protocol のコマンドを標準出力に出力します
-/// </summary>
-/// <param name="fmt">書式か？</param>
-/// <param name="">可変長引数</param>
-void SendGtp(const char* fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    vfprintf(stdout, fmt, ap);
-    va_end(ap);
-}
-
-// 64ビット符号なし整数型の定義
-#if defined(_MSC_VER)
-typedef unsigned __int64 uint64;
-#define PRIx64 "I64x"
-#else
-#include <stdint.h>
-#include <sys/time.h>
-#include <unistd.h>
-typedef uint64_t uint64; // Linux
-#define PRIx64 "llx"
-#endif
 
 /// <summary>
 /// 1...black, 2...white, 3...ko
@@ -70,33 +45,6 @@ uint64 hashboard[kBoardMax][kHashKinds];
 /// ハッシュ コード？
 /// </summary>
 uint64 hashcode = 0;
-
-/// <summary>
-/// 何らかの数？ static変数を使って ずらしてる？？
-/// </summary>
-/// <returns></returns>
-unsigned long RandXorshift128()
-{ // 2^128-1
-    static unsigned long x = 123456789, y = 362436069, z = 521288629, w = 88675123;
-    unsigned long t;
-    t = (x ^ (x << 11)) & 0xffffffff;
-    x = y;
-    y = z;
-    z = w;
-    return (w = (w ^ (w >> 19)) ^ (t ^ (t >> 8)));
-}
-
-/// <summary>
-/// 何らかの数？
-/// </summary>
-/// <returns></returns>
-uint64 Rand64()
-{
-    unsigned long r1 = RandXorshift128();
-    unsigned long r2 = RandXorshift128();
-    uint64 r = ((uint64)r1 << 32) | r2;
-    return r;
-}
 
 /// <summary>
 /// GTPプロトコルとして送信せずに 引数r を表示？
