@@ -65,7 +65,7 @@ public:
     /// <summary>
     /// 棋譜
     /// </summary>
-    int record[kMaxMoves] = {0};
+    int record[kMaxMoves] = { 0 };
 
     /// <summary>
     /// n手目。1手目が0
@@ -472,7 +472,7 @@ int Position::PutStone(int tz, int color, int fill_eye_err)
 
     // pass
     if (tz == 0)
-    { 
+    {
         if (ko_z != 0)
             HashXor(ko_z, kHashKo);
 
@@ -856,10 +856,10 @@ int Position::PrimitiveMonteCalro(int color)
 // `UCT` - 探索と知識利用のバランスを取る手法
 
 /// <summary>
-/// 手を保存するための構造体
+/// 手を保存するためのものです
 /// </summary>
-typedef struct
-{
+class Child {
+public:
     /// <summary>
     /// 手の場所（move position）
     /// </summary>
@@ -894,40 +894,47 @@ typedef struct
     /// 人間的に盤面上の3x3のパターンの形を考えると悪手なので、着手の確率を下げるための割引率 0.0～1.0（shape bonus）
     /// </summary>
     double bonus;
-} CHILD;
-
-// 最大の子数。9路なら82個。+1 for PASS
-#define CHILD_SIZE (kBoardSize * kBoardSize + 1)
+};
 
 /// <summary>
-/// 局面を保存する構造体
+/// 最大の子数。9路なら82個。+1 for PASS
 /// </summary>
-typedef struct
-{
+const int kChildSize = (kBoardSize * kBoardSize + 1);
+
+/// <summary>
+/// 局面を保存するためのものです
+/// </summary>
+class Node {
+public:
     /// <summary>
     /// 実際の子どもの数
     /// </summary>
     int child_num;
-    CHILD children[CHILD_SIZE];
+
+    Child children[kChildSize];
+
     /// <summary>
     /// 何回の対局でこのノードに来たか（子の合計）
     /// </summary>
     int child_games_sum;
+
     /// <summary>
     /// レーブ？な対局数？（子の合計）
     /// </summary>
     int child_rave_games_sum;
-} NODE;
+
+    void AddChild(int z, double bonus);
+};
 
 // 以下、探索木全体を保存
 
 // 最大10000局面まで
-#define NODE_MAX 10000
+const int kNodeMax = 10000;
 
 /// <summary>
 /// ノードのリスト
 /// </summary>
-NODE nodeList[NODE_MAX];
+Node nodeList[kNodeMax];
 
 /// <summary>
 /// ノードのリストのサイズ。登録局面数
@@ -937,12 +944,12 @@ int node_num = 0;
 /// <summary>
 /// no next node
 /// </summary>
-const int NODE_EMPTY = -1;
+const int kNodeEmpty = -1;
 
 /// <summary>
 /// illegal move
 /// </summary>
-const int ILLEGAL_Z = -1;
+const int kIllegalZ = -1;
 
 /// <summary>
 /// リストの末尾に要素を追加。手を追加。
@@ -954,19 +961,19 @@ const int ILLEGAL_Z = -1;
 /// 人間的に考えて悪手なので、着手の確率を下げるための割引率 0.0～1.0
 /// from 0 to 10, good move has big bonus
 /// </param>
-void add_child(NODE* pN, int z, double bonus)
+void Node::AddChild(int z, double bonus)
 {
     // 新しい要素のインデックス
-    int n = pN->child_num;
-    pN->children[n].z = z;
-    pN->children[n].games = 0;
-    pN->children[n].rate = 0;
-    pN->children[n].rave_games = 0;
-    pN->children[n].rave_rate = 0;
-    pN->children[n].next = NODE_EMPTY;
-    pN->children[n].bonus = bonus;
+    int n = this->child_num;
+    this->children[n].z = z;
+    this->children[n].games = 0;
+    this->children[n].rate = 0;
+    this->children[n].rave_games = 0;
+    this->children[n].rave_rate = 0;
+    this->children[n].next = kNodeEmpty;
+    this->children[n].bonus = bonus;
     // ノードのリストのサイズ更新
-    pN->child_num++;
+    this->child_num++;
 }
 
 /// <summary>
@@ -979,10 +986,10 @@ void add_child(NODE* pN, int z, double bonus)
 int Position::CreateNode(int prev_z)
 {
     int x, y, z, i, j;
-    NODE* pN;
+    Node* pN;
 
     // これ以上増やせません
-    if (node_num == NODE_MAX)
+    if (node_num == kNodeMax)
     {
         Prt("nodeList over Err\n");
         exit(0);
@@ -1001,19 +1008,19 @@ int Position::CreateNode(int prev_z)
             z = GetZ(x + 1, y + 1);
             if (Board[z] != 0)
                 continue;
-            add_child(pN, z, 0);
+            pN->AddChild(z, 0);
         }
-    add_child(pN, 0, 0); // add PASS
+    pN->AddChild(0, 0); // add PASS
 
     // sort children
     for (i = 0; i < pN->child_num - 1; i++)
     {
         double max_b = pN->children[i].bonus;
         int max_i = i;
-        CHILD tmp;
+        Child tmp;
         for (j = i + 1; j < pN->child_num; j++)
         {
-            CHILD* c = &pN->children[j];
+            Child* c = &pN->children[j];
             if (max_b >= c->bonus)
                 continue;
             max_b = c->bonus;
@@ -1034,6 +1041,17 @@ int Position::CreateNode(int prev_z)
 }
 
 /// <summary>
+/// `UCT` - 探索と知識利用のバランスを取る手法
+/// </summary>
+class UpperConfidenceTree {
+public:
+    int SelectBestUcb(int node_n, int color);
+    void UpdateRave(Node* pN, int color, int current_depth, double win);
+    int SearchUct(int color, int node_n);
+    int GetBestUct(int color);
+}uct;
+
+/// <summary>
 /// UCBが最大の手を返します。
 /// 一度も試していない手は優先的に選びます。
 /// 定数 Ｃ は実験で決めてください。
@@ -1042,9 +1060,9 @@ int Position::CreateNode(int prev_z)
 /// <param name="node_n">ノードのリストのインデックス</param>
 /// <param name="color">手番の色</param>
 /// <returns>ノードのリストのインデックス。選択した子ノードを指します</returns>
-int SelectBestUcb(int node_n, int color)
+int UpperConfidenceTree::SelectBestUcb(int node_n, int color)
 {
-    NODE* pN = &nodeList[node_n];
+    Node* pN = &nodeList[node_n];
     int select = -1;
     double max_ucb = -999;
     double ucb = 0, ucb_rave = 0, beta;
@@ -1053,10 +1071,10 @@ int SelectBestUcb(int node_n, int color)
     // 子要素の数だけ繰り返します
     for (i = 0; i < pN->child_num; i++)
     {
-        CHILD* c = &pN->children[i];
+        Child* c = &pN->children[i];
 
         // 非合法手の座標なら無視
-        if (c->z == ILLEGAL_Z)
+        if (c->z == kIllegalZ)
             continue;
 
         // 試した回数が 0 のとき
@@ -1110,14 +1128,14 @@ int SelectBestUcb(int node_n, int color)
 /// <param name="color">手番の色</param>
 /// <param name="current_depth">経路の深さ</param>
 /// <param name="win">勝率</param>
-void UpdateRave(NODE* pN, int color, int current_depth, double win)
+void UpperConfidenceTree::UpdateRave(Node* pN, int color, int current_depth, double win)
 {
     // 盤面の各交点の手番の色？
     int played_color[kBoardMax];
 
     // ループ カウンター
     int i;
-    
+
     // 着手した座標
     int z;
 
@@ -1149,10 +1167,10 @@ void UpdateRave(NODE* pN, int color, int current_depth, double win)
     for (i = 0; i < pN->child_num; i++)
     {
         // 子ノード
-        CHILD* c = &pN->children[i];
+        Child* c = &pN->children[i];
 
         // 非合法手は無視
-        if (c->z == ILLEGAL_Z)
+        if (c->z == kIllegalZ)
             continue;
 
         // 相手の色なら無視
@@ -1177,13 +1195,13 @@ void UpdateRave(NODE* pN, int color, int current_depth, double win)
 /// <param name="color">手番の色。最初は考えているプレイヤーの色</param>
 /// <param name="node_n">ノードのリストのインデックス。最初は0</param>
 /// <returns>手番の勝率</returns>
-int SearchUct(int color, int node_n)
+int UpperConfidenceTree::SearchUct(int color, int node_n)
 {
     // この局面
-    NODE* pN = &nodeList[node_n];
+    Node* pN = &nodeList[node_n];
 
     // 最善の一手（子ノード）
-    CHILD* c = NULL;
+    Child* c = NULL;
     int select, z, err, win, current_depth;
 
     // とりあえず打ってみる
@@ -1205,8 +1223,8 @@ int SearchUct(int color, int node_n)
         if (err == 0)
             break;
 
-        // 非合法手なら、 ILLEGAL_Z をセットして ループをやり直し
-        c->z = ILLEGAL_Z; // select other move
+        // 非合法手なら、 kIllegalZ をセットして ループをやり直し
+        c->z = kIllegalZ; // select other move
     }
 
     // 現在の深さを更新
@@ -1229,7 +1247,7 @@ int SearchUct(int color, int node_n)
     else
     {
         // 子ノードが葉なら、さらに延長
-        if (c->next == NODE_EMPTY)
+        if (c->next == kNodeEmpty)
             c->next = position.CreateNode(c->z);
 
         // 手番をひっくり返して UCT探索（ネガマックス形式）。勝率はひっくり返して格納
@@ -1261,7 +1279,7 @@ int uct_loop = 1000;
 /// </summary>
 /// <param name="color">手番の色</param>
 /// <returns>一番良く打たれた一手の座標</returns>
-int GetBestUct(int color)
+int UpperConfidenceTree::GetBestUct(int color)
 {
     int next, i, best_z, best_i = -1;
 
@@ -1269,7 +1287,7 @@ int GetBestUct(int color)
     int max = -999;
 
     // この局面
-    NODE* pN;
+    Node* pN;
 
     // 前回の着手座標？
     int prev_z = 0;
@@ -1310,7 +1328,7 @@ int GetBestUct(int color)
     for (i = 0; i < pN->child_num; i++)
     {
         // 子ノード
-        CHILD* c = &pN->children[i];
+        Child* c = &pN->children[i];
 
         // 最大対局数（一番打たれた手ということ）の更新
         if (c->games > max)
@@ -1417,7 +1435,7 @@ int Position::GetComputerMove(int color, int search)
     if (search == kSearchUct)
     {
         // UCTを使ったゲームプレイ
-        z = GetBestUct(color);
+        z = uct.GetBestUct(color);
     }
     else
     {
