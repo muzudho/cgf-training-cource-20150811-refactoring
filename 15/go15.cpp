@@ -15,81 +15,143 @@
 /// </summary>
 double komi = 6.5;
 
-// n路盤
-#define B_SIZE 9
-
-// 両端に番兵込みの幅
-#define WIDTH (B_SIZE + 2)
-
-// 番兵込みの盤の面積
-#define BOARD_MAX (WIDTH * WIDTH)
+/// <summary>
+/// n路盤
+/// </summary>
+const int kBoardSize = 9;
 
 /// <summary>
-/// 盤
+/// 両端に番兵込みの幅
 /// </summary>
-int board[BOARD_MAX] = {
-    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 };
+const int kWidth = (kBoardSize + 2);
+
+/// <summary>
+/// 番兵込みの盤の面積
+/// </summary>
+const int kBoardMax = (kWidth * kWidth);
 
 /// <summary>
 /// 右、下、左、上
 /// </summary>
-int dir4[4] = { +1, +WIDTH, -1, -WIDTH };
+const int kDir4[4] = { +1, +kWidth, -1, -kWidth };
 
 /// <summary>
 /// 右、下、左、上、右下、左下、左上、右上
 /// </summary>
-int dir8[8] = { +1, +WIDTH, -1, -WIDTH, +1 + WIDTH, +WIDTH - 1, -1 - WIDTH, -WIDTH + 1 };
+const int kDir8[8] = { +1, +kWidth, -1, -kWidth, +1 + kWidth, +kWidth - 1, -1 - kWidth, -kWidth + 1 };
 
 /// <summary>
-/// コウの座標
+/// 指し手の要素数
 /// </summary>
-int ko_z;
-
-// 指し手の要素数
-#define MAX_MOVES 1000
+const int kMaxMoves = 1000;
 
 /// <summary>
-/// 棋譜
+/// UCTで使われる経路（パス）の最大長
 /// </summary>
-int record[MAX_MOVES];
+const int kDMax = 1000;
 
 /// <summary>
-/// 指し手の消費時間
+/// 局面
 /// </summary>
-double record_time[MAX_MOVES];
+class Position {
+public:
+    /// <summary>
+    /// 盤
+    /// </summary>
+    int Board[kBoardMax] = {
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 };
 
-/// <summary>
-/// n手目。1手目が0
-/// </summary>
-int moves = 0;
+    /// <summary>
+    /// コウの座標
+    /// </summary>
+    int ko_z = 0;
 
-/// <summary>
-/// プレイアウト回数
-/// </summary>
-int all_playouts = 0;
+    /// <summary>
+    /// 棋譜
+    /// </summary>
+    int record[kMaxMoves];
 
-/// <summary>
-/// テストでプレイアウトするなら1
-/// </summary>
-int flag_test_playout = 0;
+    /// <summary>
+    /// 指し手の消費時間
+    /// </summary>
+    double record_time[kMaxMoves];
 
-// UCTで使われる経路（パス）の最大長
-#define D_MAX 1000
+    /// <summary>
+    /// n手目。1手目が0
+    /// </summary>
+    int moves = 0;
+
+    /// <summary>
+    /// プレイアウト回数
+    /// </summary>
+    int all_playouts = 0;
+
+    /// <summary>
+    /// テストでプレイアウトするなら1
+    /// </summary>
+    int flag_test_playout = 0;
+
+    /// <summary>
+    /// 盤エリアの何らかの累計？
+    /// </summary>
+    int board_area_sum[kBoardMax];
+
+    /// <summary>
+    /// 盤の各交点の勝者？
+    /// </summary>
+    int board_winner[2][kBoardMax];
+
+    /// <summary>
+    /// 勝者のカウント？
+    /// </summary>
+    int winner_count[2];
+
+    /// <summary>
+    /// 盤の各交点の致命さ？
+    /// </summary>
+    int criticality[kBoardMax];
+
+    /// <summary>
+    /// 呼吸点を探索するアルゴリズムで使用
+    /// </summary>
+    int check_board[kBoardMax];
+
+    void PrintBoard();
+    void PrintBoardArea();
+    double GetCriticality(int z);
+    void PrintCriticality();
+    void CountLibertySub(int tz, int color, int* p_liberty, int* p_stone);
+    void CountLiberty(int tz, int* p_liberty, int* p_stone);
+    void TakeStone(int tz, int color);
+    int PutStone(int tz, int color, int fill_eye_err);
+    int CountScore(int turn_color);
+    int Playout(int turn_color);
+    int PrimitiveMonteCalro(int color);
+    double CountTotalTime();
+    int GetBestUct(int color);
+    void InitBoard();
+    void AddMoves(int z, int color, double sec);
+    int PlayComputerMove(int color, int search);
+    void PrintSgf();
+    void Selfplay();
+    void TestPlayout();
+
+}position;
 
 /// <summary>
 /// UCTで使われる経路（パス）
 /// </summary>
-int path[D_MAX];
+int path[kDMax];
 
 /// <summary>
 /// UCTで使われる経路（パス）の先頭がらn番目(0開始)
@@ -97,32 +159,12 @@ int path[D_MAX];
 int depth;
 
 /// <summary>
-/// 盤エリアの何らかの累計？
-/// </summary>
-int board_area_sum[BOARD_MAX];
-
-/// <summary>
-/// 盤の各交点の勝者？
-/// </summary>
-int board_winner[2][BOARD_MAX];
-
-/// <summary>
-/// 勝者のカウント？
-/// </summary>
-int winner_count[2];
-
-/// <summary>
-/// 盤の各交点の致命さ？
-/// </summary>
-int criticality[BOARD_MAX];
-
-/// <summary>
 /// プリントなんだけれども 標準エラー出力に出してる？
 /// サーバーに出力したくない文字列を表示したいときに使う？
 /// </summary>
 /// <param name="fmt">書式か？</param>
 /// <param name="">可変長引数</param>
-void prt(const char* fmt, ...)
+void Prt(const char* fmt, ...)
 {
     va_list ap;
 
@@ -137,7 +179,7 @@ void prt(const char* fmt, ...)
 /// </summary>
 /// <param name="fmt">書式か？</param>
 /// <param name="">可変長引数</param>
-void send_gtp(const char* fmt, ...)
+void SendGtp(const char* fmt, ...)
 {
     va_list ap;
 
@@ -158,23 +200,31 @@ typedef uint64_t uint64; // Linux
 #define PRIx64 "llx"
 #endif
 
-// 1...black, 2...white, 3...ko
-#define HASH_KINDS 4
+/// <summary>
+/// 1...black, 2...white, 3...ko
+/// </summary>
+const int kHashKinds = 4;
 
-// コウ？
-#define HASH_KO 3
+/// <summary>
+/// コウ？
+/// </summary>
+const int kHashKo = 3;
 
-// 盤の各交点の、種類別のハッシュ？
-uint64 hashboard[BOARD_MAX][HASH_KINDS];
+/// <summary>
+/// 盤の各交点の、種類別のハッシュ？
+/// </summary>
+uint64 hashboard[kBoardMax][kHashKinds];
 
-// ハッシュ コード？
+/// <summary>
+/// ハッシュ コード？
+/// </summary>
 uint64 hashcode = 0;
 
 /// <summary>
 /// 何らかの数？ static変数を使って ずらしてる？？
 /// </summary>
 /// <returns></returns>
-unsigned long rand_xorshift128()
+unsigned long RandXorshift128()
 { // 2^128-1
     static unsigned long x = 123456789, y = 362436069, z = 521288629, w = 88675123;
     unsigned long t;
@@ -189,10 +239,10 @@ unsigned long rand_xorshift128()
 /// 何らかの数？
 /// </summary>
 /// <returns></returns>
-uint64 rand64()
+uint64 Rand64()
 {
-    unsigned long r1 = rand_xorshift128();
-    unsigned long r2 = rand_xorshift128();
+    unsigned long r1 = RandXorshift128();
+    unsigned long r2 = RandXorshift128();
     uint64 r = ((uint64)r1 << 32) | r2;
     return r;
 }
@@ -201,34 +251,34 @@ uint64 rand64()
 /// GTPプロトコルとして送信せずに 引数r を表示？
 /// </summary>
 /// <param name="r"></param>
-void prt_code64(uint64 r)
+void PrtCode64(uint64 r)
 {
-    //prt("%016" PRIx64,r);
-    prt("%08x%08x", (int)(r >> 32), (int)r);
+    //Prt("%016" PRIx64,r);
+    Prt("%08x%08x", (int)(r >> 32), (int)r);
 };
 
 /// <summary>
 /// 盤の各交点に乱数を割り振っている？
 /// </summary>
-void make_hashboard()
+void MakeHashboard()
 {
     int z, i;
-    for (z = 0; z < BOARD_MAX; z++)
+    for (z = 0; z < kBoardMax; z++)
     {
-        //  prt("[%3d]=",z);
-        for (i = 0; i < HASH_KINDS; i++)
+        //  Prt("[%3d]=",z);
+        for (i = 0; i < kHashKinds; i++)
         {
-            hashboard[z][i] = rand64();
-            //    prt_code64(hashboard[z][i]); prt(",");
+            hashboard[z][i] = Rand64();
+            //    PrtCode64(hashboard[z][i]); Prt(",");
         }
-        //  prt("\n");
+        //  Prt("\n");
     }
 }
 
 /// <summary>
 /// ハッシュコードの 2進数の 0と1 をひっくり返す？
 /// </summary>
-void hash_pass()
+void HashPass()
 {
     hashcode = ~hashcode;
 }
@@ -238,7 +288,7 @@ void hash_pass()
 /// </summary>
 /// <param name="z">着手点</param>
 /// <param name="color">手番の色</param>
-void hash_xor(int z, int color)
+void HashXor(int z, int color)
 {
     // 指定座標、指定色のハッシュの 2進数の 0と1 を反転させたものを ハッシュコードに記憶させている？
     hashcode ^= hashboard[z][color];
@@ -250,9 +300,9 @@ void hash_xor(int z, int color)
 /// <param name="x">is (1 &lt;= x &lt;= 9)</param>
 /// <param name="y">is (1 &lt;= y &lt;= 9)</param>
 /// <returns></returns>
-int get_z(int x, int y)
+int GetZ(int x, int y)
 {
-    return y * WIDTH + x;
+    return y * kWidth + x;
 }
 
 /// <summary>
@@ -260,14 +310,14 @@ int get_z(int x, int y)
 /// </summary>
 /// <param name="z">座標</param>
 /// <returns>人が読める形の座標</returns>
-int get81(int z)
+int Get81(int z)
 {
     // 段
-    int y = z / WIDTH;
+    int y = z / kWidth;
 
     // 筋
     // 106 = 9*11 + 7 = (x,y)=(7,9) -> 79
-    int x = z - y * WIDTH;
+    int x = z - y * kWidth;
 
     // パスなら0を返します
     if (z == 0)
@@ -282,11 +332,11 @@ int get81(int z)
 /// 同じ命令文で2回呼び出さないでください。
 /// don't call twice in same sentence.
 ///
-/// like prt("z0=%s,z1=%s\n",get_char_z(z0),get_char_z(z1));
+/// like Prt("z0=%s,z1=%s\n",GetCharZ(z0),GetCharZ(z1));
 /// </summary>
 /// <param name="z">座標</param>
 /// <returns>人が読める形の座標（文字列）</returns>
-char* get_char_z(int z)
+char* GetCharZ(int z)
 {
     // 筋
     int x;
@@ -305,15 +355,15 @@ char* get_char_z(int z)
     if (z == 0)
         return buf;
 
-    y = z / WIDTH;
-    x = z - y * WIDTH;
+    y = z / kWidth;
+    x = z - y * kWidth;
     ax = x - 1 + 'A';
 
     // 筋に I列は無いので詰めます
     if (ax >= 'I')
         ax++; // from 'A' to 'T', excluding 'I'
 
-    sprintf(buf, "%c%d", ax, B_SIZE + 1 - y);
+    sprintf(buf, "%c%d", ax, kBoardSize + 1 - y);
 
     return buf;
 }
@@ -323,7 +373,7 @@ char* get_char_z(int z)
 /// </summary>
 /// <param name="col">石の色</param>
 /// <returns>反転した石の色</returns>
-int flip_color(int col)
+int FlipColor(int col)
 {
     return 3 - col;
 }
@@ -331,7 +381,7 @@ int flip_color(int col)
 /// <summary>
 /// 盤の描画
 /// </summary>
-void print_board()
+void Position::PrintBoard()
 {
     // 筋
     int x;
@@ -352,56 +402,56 @@ void print_board()
     if (moves > 0)
     {
         played_z = record[moves - 1];
-        color = board[played_z];
+        color = Board[played_z];
     }
 
-    prt("   ");
-    //for (x=0;x<B_SIZE;x++) prt("%d",x+1);
-    for (x = 0; x < B_SIZE; x++)
-        prt("%c", 'A' + x + (x > 7));
-    prt("\n");
-    for (y = 0; y < B_SIZE; y++)
+    Prt("   ");
+    //for (x=0;x<kBoardSize;x++) Prt("%d",x+1);
+    for (x = 0; x < kBoardSize; x++)
+        Prt("%c", 'A' + x + (x > 7));
+    Prt("\n");
+    for (y = 0; y < kBoardSize; y++)
     {
-        //  prt("%2d ",y+1);
-        prt("%2d ", B_SIZE - y);
-        for (x = 0; x < B_SIZE; x++)
+        //  Prt("%2d ",y+1);
+        Prt("%2d ", kBoardSize - y);
+        for (x = 0; x < kBoardSize; x++)
         {
-            prt("%s", str[board[get_z(x + 1, y + 1)]]);
+            Prt("%s", str[Board[GetZ(x + 1, y + 1)]]);
         }
         if (y == 4)
-            prt("  ko_z=%s,moves=%d", get_char_z(ko_z), moves);
+            Prt("  ko_z=%s,moves=%d", GetCharZ(ko_z), moves);
         if (y == 7)
-            prt("  play_z=%s, color=%d", get_char_z(played_z), color);
+            Prt("  play_z=%s, color=%d", GetCharZ(played_z), color);
 
-        prt("\n");
+        Prt("\n");
     }
 }
 
 /// <summary>
 /// 盤領域を 標準エラー出力へ出力？
 /// </summary>
-void print_board_area()
+void Position::PrintBoardArea()
 {
     int x, y;
     int all = all_playouts;
     if (all == 0)
         all = 1;
 
-    prt("board_area_sum\n   ");
-    for (x = 0; x < B_SIZE; x++)
-        prt("   %c", 'A' + x + (x > 7));
-    prt("\n");
-    for (y = 0; y < B_SIZE; y++)
+    Prt("board_area_sum\n   ");
+    for (x = 0; x < kBoardSize; x++)
+        Prt("   %c", 'A' + x + (x > 7));
+    Prt("\n");
+    for (y = 0; y < kBoardSize; y++)
     {
-        prt("%2d ", B_SIZE - y);
-        for (x = 0; x < B_SIZE; x++)
+        Prt("%2d ", kBoardSize - y);
+        for (x = 0; x < kBoardSize; x++)
         {
-            int sum = board_area_sum[get_z(x + 1, y + 1)];
+            int sum = board_area_sum[GetZ(x + 1, y + 1)];
             double per = 100.0 * sum / all;
-            prt("%4.0f", per);
+            Prt("%4.0f", per);
         }
 
-        prt("\n");
+        Prt("\n");
     }
 }
 
@@ -410,7 +460,7 @@ void print_board_area()
 /// </summary>
 /// <param name="z">着手点</param>
 /// <returns>致命さを表す数？</returns>
-double get_criticality(int z)
+double Position::GetCriticality(int z)
 {
     double all = all_playouts + 1;
     double v = board_winner[0][z] + board_winner[1][z];
@@ -424,30 +474,25 @@ double get_criticality(int z)
 /// <summary>
 /// 致命さをエラー出力へ出力？
 /// </summary>
-void print_criticality()
+void Position::PrintCriticality()
 {
     int x, y;
 
-    prt("criticality\n  ");
-    for (x = 0; x < B_SIZE; x++)
-        prt("    %c", 'A' + x + (x > 7));
-    prt("\n");
-    for (y = 0; y < B_SIZE; y++)
+    Prt("criticality\n  ");
+    for (x = 0; x < kBoardSize; x++)
+        Prt("    %c", 'A' + x + (x > 7));
+    Prt("\n");
+    for (y = 0; y < kBoardSize; y++)
     {
-        prt("%2d ", B_SIZE - y);
-        for (x = 0; x < B_SIZE; x++)
+        Prt("%2d ", kBoardSize - y);
+        for (x = 0; x < kBoardSize; x++)
         {
-            double crt = get_criticality(get_z(x + 1, y + 1));
-            prt("%5.2f", crt);
+            double crt = GetCriticality(GetZ(x + 1, y + 1));
+            Prt("%5.2f", crt);
         }
-        prt("\n");
+        Prt("\n");
     }
 }
-
-/// <summary>
-/// 呼吸点を探索するアルゴリズムで使用
-/// </summary>
-int check_board[BOARD_MAX];
 
 /// <summary>
 /// count_liberty関数の中で呼び出されます。再帰
@@ -456,7 +501,7 @@ int check_board[BOARD_MAX];
 /// <param name="color">連の色</param>
 /// <param name="p_liberty">呼吸点の数</param>
 /// <param name="p_stone">連の石の数</param>
-void count_liberty_sub(int tz, int color, int* p_liberty, int* p_stone)
+void Position::CountLibertySub(int tz, int color, int* p_liberty, int* p_stone)
 {
     // 着手点
     int z;
@@ -468,16 +513,16 @@ void count_liberty_sub(int tz, int color, int* p_liberty, int* p_stone)
     (*p_stone)++;        // number of stone
     for (i = 0; i < 4; i++)
     {
-        z = tz + dir4[i];
+        z = tz + kDir4[i];
         if (check_board[z])
             continue;
-        if (board[z] == 0)
+        if (Board[z] == 0)
         {
             check_board[z] = 1;
             (*p_liberty)++; // number of liberty
         }
-        if (board[z] == color)
-            count_liberty_sub(z, color, p_liberty, p_stone);
+        if (Board[z] == color)
+            CountLibertySub(z, color, p_liberty, p_stone);
     }
 }
 
@@ -487,13 +532,13 @@ void count_liberty_sub(int tz, int color, int* p_liberty, int* p_stone)
 /// <param name="tz">着手座標</param>
 /// <param name="p_liberty">呼吸点の数</param>
 /// <param name="p_stone">連の石の数</param>
-void count_liberty(int tz, int* p_liberty, int* p_stone)
+void Position::CountLiberty(int tz, int* p_liberty, int* p_stone)
 {
     int i;
     *p_liberty = *p_stone = 0;
-    for (i = 0; i < BOARD_MAX; i++)
+    for (i = 0; i < kBoardMax; i++)
         check_board[i] = 0;
-    count_liberty_sub(tz, board[tz], p_liberty, p_stone);
+    CountLibertySub(tz, Board[tz], p_liberty, p_stone);
 }
 
 /// <summary>
@@ -501,29 +546,29 @@ void count_liberty(int tz, int* p_liberty, int* p_stone)
 /// </summary>
 /// <param name="tz">着手座標</param>
 /// <param name="color">石の色</param>
-void take_stone(int tz, int color)
+void Position::TakeStone(int tz, int color)
 {
     int z, i;
 
-    hash_xor(tz, color);
-    board[tz] = 0;
+    HashXor(tz, color);
+    Board[tz] = 0;
     for (i = 0; i < 4; i++)
     {
-        z = tz + dir4[i];
-        if (board[z] == color)
-            take_stone(z, color);
+        z = tz + kDir4[i];
+        if (Board[z] == color)
+            TakeStone(z, color);
     }
 }
 
 /// <summary>
 /// 目潰しをエラーとするなら
 /// </summary>
-const int FILL_EYE_ERR = 1;
+const int kFillEyeErr = 1;
 
 /// <summary>
 /// 目潰しを合法手とするなら（囲碁のルールでは合法手）
 /// </summary>
-const int FILL_EYE_OK = 0;
+const int kFillEyeOk = 0;
 
 /// <summary>
 /// put stone.
@@ -532,13 +577,13 @@ const int FILL_EYE_OK = 0;
 /// <param name="color">石の色</param>
 /// <param name="fill_eye_err">目潰しをエラーとするなら1、そうでないなら0</param>
 /// <returns>エラーコード。success returns 0. in playout, fill_eye_err = 1</returns>
-int put_stone(int tz, int color, int fill_eye_err)
+int Position::PutStone(int tz, int color, int fill_eye_err)
 {
     // 検索情報を覚えておく配列
     int around[4][3];
 
     // 相手の石の色
-    int un_col = flip_color(color);
+    int un_col = FlipColor(color);
 
     // 空白に石を置いたら1
     int space = 0;
@@ -568,10 +613,10 @@ int put_stone(int tz, int color, int fill_eye_err)
     if (tz == 0)
     {
         if (ko_z != 0)
-            hash_xor(ko_z, HASH_KO);
+            HashXor(ko_z, kHashKo);
 
         ko_z = 0;
-        hash_pass();
+        HashPass();
         return 0;
     }
 
@@ -582,8 +627,8 @@ int put_stone(int tz, int color, int fill_eye_err)
         around[i][0] = around[i][1] = around[i][2] = 0;
 
         // 隣の座標
-        z = tz + dir4[i];
-        c = board[z]; // color
+        z = tz + kDir4[i];
+        c = Board[z]; // color
 
         // もし、隣が空点なら
         if (c == 0)
@@ -598,7 +643,7 @@ int put_stone(int tz, int color, int fill_eye_err)
             continue;
 
         // 呼吸点の数と、連の石の数を数えます
-        count_liberty(z, &liberty, &stone);
+        CountLiberty(z, &liberty, &stone);
 
         // 隣の石が相手の色で、呼吸点が1なら、その石を取れます
         around[i][0] = liberty;
@@ -630,7 +675,7 @@ int put_stone(int tz, int color, int fill_eye_err)
         return 3; // eye
 
     // もし、石の上に石を置こうとしたら、反則手
-    if (board[tz] != 0)
+    if (Board[tz] != 0)
         return 4;
 
     // 取れる相手の石を取ります
@@ -638,33 +683,33 @@ int put_stone(int tz, int color, int fill_eye_err)
     {
         int lib = around[i][0];
         int c = around[i][2];
-        if (c == un_col && lib == 1 && board[tz + dir4[i]] != 0)
+        if (c == un_col && lib == 1 && Board[tz + kDir4[i]] != 0)
         {
-            take_stone(tz + dir4[i], un_col);
+            TakeStone(tz + kDir4[i], un_col);
         }
     }
 
     // 石を置きます
-    board[tz] = color;
+    Board[tz] = color;
 
     // 着手点のビット列を、XOR演算でひっくり返します
-    hash_xor(tz, color);
+    HashXor(tz, color);
 
     // ハッシュコードのビット列の 0,1 をひっくり返している？
-    hash_pass();
+    HashPass();
 
     // コウであれば、コウの場所のビット列の 0,1 をひっくり返している？
     if (ko_z != 0)
-        hash_xor(ko_z, HASH_KO);
+        HashXor(ko_z, kHashKo);
 
     // 着手点を含む連の呼吸点の数を数えます
-    count_liberty(tz, &liberty, &stone);
+    CountLiberty(tz, &liberty, &stone);
 
     // 石を1個取ったらコウかも知れない
     if (capture_sum == 1 && stone == 1 && liberty == 1)
     {
         ko_z = ko_maybe;
-        hash_xor(ko_z, HASH_KO);
+        HashXor(ko_z, kHashKo);
     }
     else
     {
@@ -679,7 +724,7 @@ int put_stone(int tz, int color, int fill_eye_err)
 /// </summary>
 /// <param name="turn_color">手番の色</param>
 /// <returns>黒の勝ちなら1、負けなら0</returns>
-int count_score(int turn_color)
+int Position::CountScore(int turn_color)
 {
     // 筋
     int x;
@@ -709,11 +754,11 @@ int count_score(int turn_color)
     int kind[3];
 
     kind[0] = kind[1] = kind[2] = 0;
-    for (y = 0; y < B_SIZE; y++)
-        for (x = 0; x < B_SIZE; x++)
+    for (y = 0; y < kBoardSize; y++)
+        for (x = 0; x < kBoardSize; x++)
         {
-            int z = get_z(x + 1, y + 1);
-            int c = board[z];
+            int z = GetZ(x + 1, y + 1);
+            int c = Board[z];
             kind[c]++;
 
             // 石が置いてある座標なら以降は無視
@@ -730,7 +775,7 @@ int count_score(int turn_color)
             // 4方向にある黒石、白石の数を数えます
             mk[1] = mk[2] = 0;
             for (i = 0; i < 4; i++)
-                mk[board[z + dir4[i]]]++;
+                mk[Board[z + kDir4[i]]]++;
 
             // 黒石だけがあるなら黒の地
             if (mk[1] && mk[2] == 0)
@@ -761,14 +806,14 @@ int count_score(int turn_color)
     {
         // 黒番の勝ちなら
         // black win
-        for (y = 0; y < B_SIZE; y++)
-            for (x = 0; x < B_SIZE; x++)
+        for (y = 0; y < kBoardSize; y++)
+            for (x = 0; x < kBoardSize; x++)
             {
                 // 着手点
-                int z = get_z(x + 1, y + 1);
+                int z = GetZ(x + 1, y + 1);
 
                 // 同色
-                if (board[z] == 1)
+                if (Board[z] == 1)
                     // 集計
                     board_winner[0][z]++;
             }
@@ -779,14 +824,14 @@ int count_score(int turn_color)
     else
     {
         // 白番の勝ちなら
-        for (y = 0; y < B_SIZE; y++)
-            for (x = 0; x < B_SIZE; x++)
+        for (y = 0; y < kBoardSize; y++)
+            for (x = 0; x < kBoardSize; x++)
             {
                 // 着手点
-                int z = get_z(x + 1, y + 1);
+                int z = GetZ(x + 1, y + 1);
 
                 // 同色
-                if (board[z] == 2)
+                if (Board[z] == 2)
                     // 集計
                     board_winner[1][z]++;
             }
@@ -799,9 +844,9 @@ int count_score(int turn_color)
     if (turn_color == 2)
         win = -win;
 
-    //prt("black_sum=%2d, (stones=%2d, area=%2d)\n",black_sum, kind[1], black_area);
-    //prt("white_sum=%2d, (stones=%2d, area=%2d)\n",white_sum, kind[2], white_area);
-    //prt("score=%d, win=%d\n",score, win);
+    //Prt("black_sum=%2d, (stones=%2d, area=%2d)\n",black_sum, kind[1], black_area);
+    //Prt("white_sum=%2d, (stones=%2d, area=%2d)\n",white_sum, kind[2], white_area);
+    //Prt("score=%d, win=%d\n",score, win);
     return win;
 }
 
@@ -810,7 +855,7 @@ int count_score(int turn_color)
 /// </summary>
 /// <param name="turn_color">手番の石の色</param>
 /// <returns>黒の勝ちなら1、負けなら0</returns>
-int playout(int turn_color)
+int Position::Playout(int turn_color)
 {
     // 手番の色
     int color = turn_color;
@@ -820,7 +865,7 @@ int playout(int turn_color)
 
     // ループ・カウンタ
     int loop;
-    int loop_max = B_SIZE * B_SIZE + 200; // for triple ko
+    int loop_max = kBoardSize * kBoardSize + 200; // for triple ko
 
     // プレイアウト回数のカウント
     all_playouts++;
@@ -829,7 +874,7 @@ int playout(int turn_color)
     {
         // all empty points are candidates.
         // [0]...z, [1]...probability
-        int empty[BOARD_MAX][2];
+        int empty[kBoardMax][2];
 
         // 配列のインデックス
         int empty_num = 0;
@@ -838,11 +883,11 @@ int playout(int turn_color)
         int prob_sum = 0;
         // 壁を除く盤上の全ての空点の(座標,確率)を empty配列にセットします
         int x, y, z, err, pr;
-        for (y = 0; y < B_SIZE; y++)
-            for (x = 0; x < B_SIZE; x++)
+        for (y = 0; y < kBoardSize; y++)
+            for (x = 0; x < kBoardSize; x++)
             {
-                int z = get_z(x + 1, y + 1);
-                if (board[z] != 0)
+                int z = GetZ(x + 1, y + 1);
+                if (Board[z] != 0)
                     continue;
                 empty[empty_num][0] = z;
                 // 空点を選ぶ確率？
@@ -874,12 +919,12 @@ int playout(int turn_color)
                 }
                 if (i == empty_num)
                 {
-                    prt("Err! prob_sum=%d,sum=%d,r=%d,r=%d\n", prob_sum, sum, r, i);
+                    Prt("Err! prob_sum=%d,sum=%d,r=%d,r=%d\n", prob_sum, sum, r, i);
                     exit(0);
                 }
                 z = empty[i][0];
             }
-            err = put_stone(z, color, FILL_EYE_ERR);
+            err = PutStone(z, color, kFillEyeErr);
             if (err == 0)
                 break; // pass is ok.
 
@@ -895,7 +940,7 @@ int playout(int turn_color)
             record[moves++] = z;
 
         // 経路（パス）の深さに配列サイズ上まだ余裕があれば、着手点を記憶します
-        if (depth < D_MAX)
+        if (depth < kDMax)
             path[depth++] = z;
 
         // もしパスが連続したら対局終了
@@ -904,13 +949,13 @@ int playout(int turn_color)
 
         // そうでなければ盤を表示して手番を変えて続行
         previous_z = z;
-        //  prt("loop=%d,z=%s,c=%d,empty_num=%d,ko_z=%d\n",loop,get_char_z(z),color,empty_num,ko_z);
+        //  Prt("loop=%d,z=%s,c=%d,empty_num=%d,ko_z=%d\n",loop,GetCharZ(z),color,empty_num,ko_z);
 
         // 手番を反転
-        color = flip_color(color);
+        color = FlipColor(color);
     }
 
-    return count_score(turn_color);
+    return CountScore(turn_color);
 }
 
 /// <summary>
@@ -918,7 +963,7 @@ int playout(int turn_color)
 /// </summary>
 /// <param name="color">手番の色</param>
 /// <returns>最善手の座標</returns>
-int primitive_monte_calro(int color)
+int Position::PrimitiveMonteCalro(int color)
 {
     // number of playout
     int try_num = 30;
@@ -955,26 +1000,26 @@ int primitive_monte_calro(int color)
 
     // 盤のコピー
     // keep current board
-    int board_copy[BOARD_MAX];
+    int board_copy[kBoardMax];
     ko_z_copy = ko_z;
-    memcpy(board_copy, board, sizeof(board));
+    memcpy(board_copy, Board, sizeof(Board));
 
     // 根ノードでは最低-100点から
     best_value = -100;
 
     // try all empty point
-    for (y = 0; y < B_SIZE; y++)
-        for (x = 0; x < B_SIZE; x++)
+    for (y = 0; y < kBoardSize; y++)
+        for (x = 0; x < kBoardSize; x++)
         {
             // 石を置く座標
-            int z = get_z(x + 1, y + 1);
+            int z = GetZ(x + 1, y + 1);
 
             // 空点でなければ無視
-            if (board[z] != 0)
+            if (Board[z] != 0)
                 continue;
 
             // 目潰ししないように石を置く
-            err = put_stone(z, color, FILL_EYE_ERR);
+            err = PutStone(z, color, kFillEyeErr);
             if (err != 0)
                 continue;
 
@@ -983,36 +1028,36 @@ int primitive_monte_calro(int color)
             for (i = 0; i < try_num; i++)
             {
                 // 現局面を退避
-                int board_copy2[BOARD_MAX];
+                int board_copy2[kBoardMax];
                 int ko_z_copy2 = ko_z;
-                memcpy(board_copy2, board, sizeof(board));
+                memcpy(board_copy2, Board, sizeof(Board));
 
                 // プレイアウト
-                win = -playout(flip_color(color));
+                win = -Playout(FlipColor(color));
                 win_sum += win;
 
                 // 現局面に復元
                 ko_z = ko_z_copy2;
-                memcpy(board, board_copy2, sizeof(board));
+                memcpy(Board, board_copy2, sizeof(Board));
             }
 
             // 勝率
             win_rate = (double)win_sum / try_num;
-            //  print_board();
-            //  prt("z=%d,win=%5.3f\n",get81(z),win_rate);
+            //  PrintBoard();
+            //  Prt("z=%d,win=%5.3f\n",Get81(z),win_rate);
 
             // 最善手の更新
             if (win_rate > best_value)
             {
                 best_value = win_rate;
                 best_z = z;
-                //    prt("best_z=%d,color=%d,v=%5.3f,try_num=%d\n",get81(best_z),color,best_value,try_num);
+                //    Prt("best_z=%d,color=%d,v=%5.3f,try_num=%d\n",Get81(best_z),color,best_value,try_num);
             }
 
             // コウの復元
             ko_z = ko_z_copy;
             // 盤の復元
-            memcpy(board, board_copy, sizeof(board)); // resume board
+            memcpy(Board, board_copy, sizeof(Board)); // resume board
         }
 
     return best_z;
@@ -1024,8 +1069,8 @@ int primitive_monte_calro(int color)
 /// <summary>
 /// 手を保存するための構造体
 /// </summary>
-typedef struct
-{
+class Child {
+public:
     /// <summary>
     /// 手の場所（move position）
     /// </summary>
@@ -1060,21 +1105,22 @@ typedef struct
     /// 人間的に盤面上の3x3のパターンの形を考えると悪手なので、着手の確率を下げるための割引率 0.0～1.0（shape bonus）
     /// </summary>
     double bonus;
-} CHILD;
+};
 
 // 最大の子数。9路なら82個。+1 for PASS
-#define CHILD_SIZE (B_SIZE * B_SIZE + 1)
+#define kChildSize (kBoardSize * kBoardSize + 1)
 
 /// <summary>
-/// 局面を保存する構造体
+/// 局面を保存するものです
 /// </summary>
-typedef struct
-{
+class Node {
+public:
     /// <summary>
     /// 実際の子どもの数
     /// </summary>
     int child_num;
-    CHILD child[CHILD_SIZE];
+
+    Child children[kChildSize];
 
     /// <summary>
     /// 何回の対局でこのノードに来たか（子の合計）
@@ -1085,17 +1131,32 @@ typedef struct
     /// レーブ？な対局数？（子の合計）
     /// </summary>
     int child_rave_games_sum;
-} NODE;
+
+    void AddChild(int z, double bonus);
+};
 
 // 以下、探索木全体を保存
+/// <summary>
+/// `UCT` - 探索と知識利用のバランスを取る手法
+/// </summary>
+class UpperConfidenceTree {
+public:
+    int CreateNode(int prev_z);
+    int SelectBestUcb(int node_n, int color);
+    void UpdateRave(Node* pN, int color, int current_depth, double win);
+    int SearchUct(int color, int node_n);
+    int GetBestUct(int color);
+}uct;
 
-// 最大10000局面まで
-#define NODE_MAX 10000
+/// <summary>
+/// 最大10000局面まで
+/// </summary>
+const int kNodeMax = 10000;
 
 /// <summary>
 /// ノードのリスト
 /// </summary>
-NODE node[NODE_MAX];
+Node nodeList[kNodeMax];
 
 /// <summary>
 /// ノードのリストのサイズ。登録局面数
@@ -1122,19 +1183,19 @@ const int ILLEGAL_Z = -1;
 /// 人間的に考えて悪手なので、着手の確率を下げるための割引率 0.0～1.0
 /// from 0 to 10, good move has big bonus
 /// </param>
-void add_child(NODE* pN, int z, double bonus)
+void Node::AddChild(int z, double bonus)
 {
     // 新しい要素のインデックス
-    int n = pN->child_num;
-    pN->child[n].z = z;
-    pN->child[n].games = 0;
-    pN->child[n].rate = 0;
-    pN->child[n].rave_games = 0;
-    pN->child[n].rave_rate = 0;
-    pN->child[n].next = NODE_EMPTY;
-    pN->child[n].bonus = bonus;
+    int n = this->child_num;
+    this->children[n].z = z;
+    this->children[n].games = 0;
+    this->children[n].rate = 0;
+    this->children[n].rave_games = 0;
+    this->children[n].rave_rate = 0;
+    this->children[n].next = NODE_EMPTY;
+    this->children[n].bonus = bonus;
     // ノードのリストのサイズ更新
-    pN->child_num++;
+    this->child_num++;
 }
 
 /// <summary>
@@ -1144,7 +1205,7 @@ void add_child(NODE* pN, int z, double bonus)
 /// </summary>
 /// <param name="prev_z">前回の着手の座標</param>
 /// <returns>ノードのリストのインデックス。作られたノードを指す。最初は0から</returns>
-int create_node(int prev_z)
+int UpperConfidenceTree::CreateNode(int prev_z)
 {
     // 筋
     int x;
@@ -1159,41 +1220,41 @@ int create_node(int prev_z)
     int i, j;
 
     // この局面
-    NODE* pN;
+    Node* pN;
 
     // これ以上増やせません
-    if (node_num == NODE_MAX)
+    if (node_num == kNodeMax)
     {
-        prt("node over Err\n");
+        Prt("nodeList over Err\n");
         exit(0);
     }
 
     // 末尾の未使用の要素
-    pN = &node[node_num];
+    pN = &nodeList[node_num];
     pN->child_num = 0;
     pN->child_games_sum = 0;
     pN->child_rave_games_sum = 0;
 
     // 空点をリストの末尾に追加
-    for (y = 0; y < B_SIZE; y++)
-        for (x = 0; x < B_SIZE; x++)
+    for (y = 0; y < kBoardSize; y++)
+        for (x = 0; x < kBoardSize; x++)
         {
-            z = get_z(x + 1, y + 1);
-            if (board[z] != 0)
+            z = GetZ(x + 1, y + 1);
+            if (position.Board[z] != 0)
                 continue;
-            add_child(pN, z, 0);
+            pN->AddChild(z, 0);
         }
-    add_child(pN, 0, 0); // add PASS
+    pN->AddChild(0, 0); // add PASS
 
     // sort children
     for (i = 0; i < pN->child_num - 1; i++)
     {
-        double max_b = pN->child[i].bonus;
+        double max_b = pN->children[i].bonus;
         int max_i = i;
-        CHILD tmp;
+        Child tmp;
         for (j = i + 1; j < pN->child_num; j++)
         {
-            CHILD* c = &pN->child[j];
+            Child* c = &pN->children[j];
             if (max_b >= c->bonus)
                 continue;
             max_b = c->bonus;
@@ -1201,9 +1262,9 @@ int create_node(int prev_z)
         }
         if (max_i == i)
             continue;
-        tmp = pN->child[i];
-        pN->child[i] = pN->child[max_i];
-        pN->child[max_i] = tmp;
+        tmp = pN->children[i];
+        pN->children[i] = pN->children[max_i];
+        pN->children[max_i] = tmp;
     }
 
     // 末尾に１つ追加した分、リストのサイズ１つ追加
@@ -1222,10 +1283,10 @@ int create_node(int prev_z)
 /// <param name="node_n">ノードのリストのインデックス</param>
 /// <param name="color">手番の色</param>
 /// <returns>ノードのリストのインデックス。選択した子ノードを指します</returns>
-int select_best_ucb(int node_n, int color)
+int UpperConfidenceTree::SelectBestUcb(int node_n, int color)
 {
     // この局面
-    NODE* pN = &node[node_n];
+    Node* pN = &nodeList[node_n];
 
     // 1手でも選ばれたか否か
     int select = -1;
@@ -1238,7 +1299,7 @@ int select_best_ucb(int node_n, int color)
     for (i = 0; i < pN->child_num; i++)
     {
         // この子ノード
-        CHILD* c = &pN->child[i];
+        Child* c = &pN->children[i];
 
         // 非合法手の座標なら無視
         if (c->z == ILLEGAL_Z)
@@ -1270,7 +1331,7 @@ int select_best_ucb(int node_n, int color)
             ucb = c->rate + C * sqrt(log((double)pN->child_games_sum) / c->games);
 
             ucb_rave = beta * rave + (1 - beta) * ucb;
-            //    if ( depth==0 ) prt("%2d:z=%2d,rate=%6.3f,games=%4d, rave_r=%6.3f,g=%4d, beta=%f,ucb_rave=%f\n", i, get81(c->z), c->rate, c->games, c->rave_rate, c->rave_games,beta,ucb_rave);
+            //    if ( depth==0 ) Prt("%2d:z=%2d,rate=%6.3f,games=%4d, rave_r=%6.3f,g=%4d, beta=%f,ucb_rave=%f\n", i, Get81(c->z), c->rate, c->games, c->rave_rate, c->rave_games,beta,ucb_rave);
         }
 
         // UCB値の最大を更新
@@ -1284,7 +1345,7 @@ int select_best_ucb(int node_n, int color)
     // 1手も選ばれなかったらエラーなので強制終了
     if (select == -1)
     {
-        prt("Err! select\n");
+        Prt("Err! select\n");
         exit(0);
     }
 
@@ -1298,10 +1359,10 @@ int select_best_ucb(int node_n, int color)
 /// <param name="color">手番の色</param>
 /// <param name="current_depth">経路の深さ</param>
 /// <param name="win">勝率</param>
-void update_rave(NODE* pN, int color, int current_depth, double win)
+void UpperConfidenceTree::UpdateRave(Node* pN, int color, int current_depth, double win)
 {
     // 盤面の各交点の手番の色？
-    int played_color[BOARD_MAX];
+    int played_color[kBoardMax];
 
     // ループ カウンター
     int i;
@@ -1326,7 +1387,7 @@ void update_rave(NODE* pN, int color, int current_depth, double win)
             played_color[z] = c;
 
         // 手番の色交代
-        c = flip_color(c);
+        c = FlipColor(c);
     }
 
     // パスはゼロ クリアー
@@ -1337,7 +1398,7 @@ void update_rave(NODE* pN, int color, int current_depth, double win)
     for (i = 0; i < pN->child_num; i++)
     {
         // 子ノード
-        CHILD* c = &pN->child[i];
+        Child* c = &pN->children[i];
 
         // 非合法手は無視
         if (c->z == ILLEGAL_Z)
@@ -1365,29 +1426,29 @@ void update_rave(NODE* pN, int color, int current_depth, double win)
 /// <param name="color">手番の色。最初は考えているプレイヤーの色</param>
 /// <param name="node_n">ノードのリストのインデックス。最初は0</param>
 /// <returns>手番の勝率</returns>
-int search_uct(int color, int node_n)
+int UpperConfidenceTree::SearchUct(int color, int node_n)
 {
     // この局面
-    NODE* pN = &node[node_n];
+    Node* pN = &nodeList[node_n];
 
     // 最善の一手（子ノード）
-    CHILD* c = NULL;
+    Child* c = NULL;
     int select, z, err, win, current_depth;
 
     // とりあえず打ってみる
     for (;;)
     {
         // 最善の一手（子ノード）のインデックス
-        select = select_best_ucb(node_n, color);
+        select = SelectBestUcb(node_n, color);
 
         // 最善の一手（子ノード）
-        c = &pN->child[select];
+        c = &pN->children[select];
 
         // 最善の一手（子ノード）の座標
         z = c->z;
 
         // 石を置く
-        err = put_stone(z, color, FILL_EYE_ERR);
+        err = position.PutStone(z, color, kFillEyeErr);
 
         // 合法手ならループを抜けます
         if (err == 0)
@@ -1410,23 +1471,23 @@ int search_uct(int color, int node_n)
     // 経路の深さが配列のサイズを超えているときもプレイアウトします。
     // 自分がパスを連続しているときもプレイアウトします。
     // playout in first time. <= 10 can reduce node.
-    if (c->games <= 0 || depth == D_MAX || (c->z == 0 && depth >= 2 && path[depth - 2] == 0))
+    if (c->games <= 0 || depth == kDMax || (c->z == 0 && depth >= 2 && path[depth - 2] == 0))
     {
         // 手番をひっくり返してプレイアウト
-        win = -playout(flip_color(color));
+        win = -position.Playout(FlipColor(color));
     }
     else
     {
         // 子ノードが葉なら、さらに延長
         if (c->next == NODE_EMPTY)
-            c->next = create_node(c->z);
+            c->next = uct.CreateNode(c->z);
 
         // 手番をひっくり返して UCT探索（ネガマックス形式）。勝率はひっくり返して格納
-        win = -search_uct(flip_color(color), c->next);
+        win = -SearchUct(FlipColor(color), c->next);
     }
 
     // レーブの更新
-    update_rave(pN, color, current_depth, win);
+    UpdateRave(pN, color, current_depth, win);
 
     // 勝率の更新（update winrate）
     c->rate = (c->rate * c->games + win) / (c->games + 1);
@@ -1448,7 +1509,7 @@ int search_uct(int color, int node_n)
 /// clock() returns process CPU times on Linux, not proper when multi thread.
 /// </summary>
 /// <returns></returns>
-double get_clock()
+double GetClock()
 {
 #if defined(_MSC_VER)
     return clock();
@@ -1457,7 +1518,7 @@ double get_clock()
     struct timezone zone;
     if (gettimeofday(&val, &zone) == -1)
     {
-        prt("time err\n");
+        Prt("time err\n");
         exit(0);
     }
     double t = val.tv_sec * 1000.0 + (val.tv_usec / 1000.0);
@@ -1471,11 +1532,11 @@ double get_clock()
 /// </summary>
 /// <param name="ct"></param>
 /// <returns></returns>
-double get_spend_time(double ct)
+double GetSpendTime(double ct)
 {
     //int div = CLOCKS_PER_SEC;	// 1000 ...VC, 1000000 ...gcc
     int div = 1000;
-    return (double)(get_clock() + 1 - ct) / div;
+    return (double)(GetClock() + 1 - ct) / div;
 }
 
 /// <summary>
@@ -1492,9 +1553,9 @@ double time_limit_sec = 3.0;
 /// 時間切れかどうか
 /// </summary>
 /// <returns>時間切れなら1を、そうでなければ0</returns>
-int is_time_over()
+int IsTimeOver()
 {
-    if (get_spend_time(start_time) >= time_limit_sec)
+    if (GetSpendTime(start_time) >= time_limit_sec)
         return 1;
 
     return 0;
@@ -1504,7 +1565,7 @@ int is_time_over()
 /// 時間計
 /// </summary>
 /// <returns></returns>
-double count_total_time()
+double Position::CountTotalTime()
 {
     int i;
     double total_time[2];
@@ -1530,7 +1591,7 @@ int uct_loop = 1000000;
 /// </summary>
 /// <param name="color">手番の色</param>
 /// <returns>一番良く打たれた一手の座標</returns>
-int get_best_uct(int color)
+int Position::GetBestUct(int color)
 {
     int next, i, best_z, best_i = -1;
 
@@ -1538,7 +1599,7 @@ int get_best_uct(int color)
     int max = -999;
 
     // この局面
-    NODE* pN;
+    Node* pN;
 
     // 前回の着手座標？
     int prev_z = 0;
@@ -1551,39 +1612,39 @@ int get_best_uct(int color)
     node_num = 0;
 
     // 次のノードのインデックス。ここでは0。現図を作成しています
-    next = create_node(prev_z);
+    next = uct.CreateNode(prev_z);
 
     // とりあえず UCT探索（search_uct）を、uct_loop回繰り返します
     for (i = 0; i < uct_loop; i++)
     {
         // 現図を退避
-        int board_copy[BOARD_MAX];
+        int board_copy[kBoardMax];
         int ko_z_copy = ko_z;
-        memcpy(board_copy, board, sizeof(board));
+        memcpy(board_copy, Board, sizeof(Board));
 
         // 経路の深さを初期化
         depth = 0;
 
         // UCT探索
-        search_uct(color, next);
+        uct.SearchUct(color, next);
 
         // 現図を復元
         ko_z = ko_z_copy;
-        memcpy(board, board_copy, sizeof(board));
+        memcpy(Board, board_copy, sizeof(Board));
 
         // 時間切れなら抜けます
-        if (is_time_over())
+        if (IsTimeOver())
             break;
     }
 
     // 次のノード
-    pN = &node[next];
+    pN = &nodeList[next];
 
     // 子ノード全部確認
     for (i = 0; i < pN->child_num; i++)
     {
         // 子ノード
-        CHILD* c = &pN->child[i];
+        Child* c = &pN->children[i];
 
         // 最大対局数（一番打たれた手ということ）の更新
         if (c->games > max)
@@ -1591,14 +1652,14 @@ int get_best_uct(int color)
             best_i = i;
             max = c->games;
         }
-        prt("%2d:z=%2d,rate=%6.3f,games=%4d, rave_r=%6.3f,g=%4d\n",
-            i, get81(c->z), c->rate, c->games, c->rave_rate, c->rave_games);
+        Prt("%2d:z=%2d,rate=%6.3f,games=%4d, rave_r=%6.3f,g=%4d\n",
+            i, Get81(c->z), c->rate, c->games, c->rave_rate, c->rave_games);
     }
 
     // ベストなノードの座標
-    best_z = pN->child[best_i].z;
-    prt("best_z=%d,rate=%6.3f,games=%4d,playouts=%d,nodes=%d\n",
-        get81(best_z), pN->child[best_i].rate, max, all_playouts, node_num);
+    best_z = pN->children[best_i].z;
+    Prt("best_z=%d,rate=%6.3f,games=%4d,playouts=%d,nodes=%d\n",
+        Get81(best_z), pN->children[best_i].rate, max, all_playouts, node_num);
 
     return best_z;
 }
@@ -1606,18 +1667,18 @@ int get_best_uct(int color)
 /// <summary>
 /// 盤の初期化
 /// </summary>
-void init_board()
+void Position::InitBoard()
 {
     int i, x, y;
 
     // 盤の枠を整えます
-    for (i = 0; i < BOARD_MAX; i++)
-        board[i] = 3;
+    for (i = 0; i < kBoardMax; i++)
+        Board[i] = 3;
 
     // 盤上の石をすべて取り除きます
-    for (y = 0; y < B_SIZE; y++)
-        for (x = 0; x < B_SIZE; x++)
-            board[get_z(x + 1, y + 1)] = 0;
+    for (y = 0; y < kBoardSize; y++)
+        for (x = 0; x < kBoardSize; x++)
+            Board[GetZ(x + 1, y + 1)] = 0;
 
     // 手数とコウとハッシュコードをクリアーします
     moves = 0;
@@ -1630,15 +1691,15 @@ void init_board()
 /// </summary>
 /// <param name="z">座標</param>
 /// <param name="color">手番の色</param>
-void add_moves(int z, int color, double sec)
+void Position::AddMoves(int z, int color, double sec)
 {
     // 石を置きます
-    int err = put_stone(z, color, FILL_EYE_OK);
+    int err = PutStone(z, color, kFillEyeOk);
 
     // 非合法手なら強制終了
     if (err != 0)
     {
-        prt("put_stone err=%d\n", err);
+        Prt("PutStone err=%d\n", err);
         exit(0);
     }
 
@@ -1650,12 +1711,12 @@ void add_moves(int z, int color, double sec)
     moves++;
 
     // 盤表示
-    print_board();
+    PrintBoard();
 
     // ハッシュコード表示
-    prt("hashcode=");
-    prt_code64(hashcode);
-    prt("\n");
+    Prt("hashcode=");
+    PrtCode64(hashcode);
+    Prt("\n");
 }
 
 /// <summary>
@@ -1674,7 +1735,7 @@ const int SEARCH_UCT = 1;
 /// <param name="color">手番の色</param>
 /// <param name="search">探索方法。SEARCH_PRIMITIVE または SEARCH_UCT</param>
 /// <returns>座標</returns>
-int play_computer_move(int color, int search)
+int Position::PlayComputerMove(int color, int search)
 {
     // 秒
     double sec;
@@ -1683,7 +1744,7 @@ int play_computer_move(int color, int search)
     int z;
 
     // 累計時間
-    double total_time = count_total_time();
+    double total_time = CountTotalTime();
 
     double base_time = 60 * 10; // 10 minutes
     double left_time = base_time - total_time;
@@ -1693,10 +1754,10 @@ int play_computer_move(int color, int search)
         time_limit_sec = 1.0;
     if (left_time < 20)
         time_limit_sec = 0.2;
-    prt("time_limit_sec=%.1f, total=%.1f, left=%.1f\n", time_limit_sec, total_time, left_time);
+    Prt("time_limit_sec=%.1f, total=%.1f, left=%.1f\n", time_limit_sec, total_time, left_time);
 
     // 開始時刻
-    start_time = get_clock();
+    start_time = GetClock();
 
     // プレイアウト回数
     all_playouts = 0;
@@ -1713,29 +1774,29 @@ int play_computer_move(int color, int search)
     if (search == SEARCH_UCT)
     {
         // UCTを使ったゲームプレイ
-        z = get_best_uct(color);
+        z = GetBestUct(color);
     }
     else
     {
         // 原始モンテカルロでゲームプレイ
-        z = primitive_monte_calro(color);
+        z = PrimitiveMonteCalro(color);
     }
 
     // 盤領域を表示？
-    //print_board_area();
+    //PrintBoardArea();
 
     // クリティカルさを表示？
-    //print_criticality();
+    //PrintCriticality();
 
     // 消費時間（秒）？
-    sec = get_spend_time(start_time);
+    sec = GetSpendTime(start_time);
 
     // 情報表示
-    prt("z=%s,color=%d,moves=%d,playouts=%d, %.1f sec(%.0f po/sec),depth=%d\n",
-        get_char_z(z), color, moves, all_playouts, sec, all_playouts / sec, depth);
+    Prt("z=%s,color=%d,moves=%d,playouts=%d, %.1f sec(%.0f po/sec),depth=%d\n",
+        GetCharZ(z), color, moves, all_playouts, sec, all_playouts / sec, depth);
 
     // 指し手を棋譜に記憶します
-    add_moves(z, color, sec);
+    AddMoves(z, color, sec);
 
     return z;
 }
@@ -1743,12 +1804,12 @@ int play_computer_move(int color, int search)
 /// <summary>
 /// print SGF game record
 /// </summary>
-void print_sgf()
+void Position::PrintSgf()
 {
     int i;
 
     // ヘッダー出力
-    prt("(;GM[1]SZ[%d]KM[%.1f]PB[]PW[]\n", B_SIZE, komi);
+    Prt("(;GM[1]SZ[%d]KM[%.1f]PB[]PW[]\n", kBoardSize, komi);
 
     // 指し手出力
     for (i = 0; i < moves; i++)
@@ -1757,38 +1818,38 @@ void print_sgf()
         int z = record[i];
 
         // 段
-        int y = z / WIDTH;
+        int y = z / kWidth;
 
         // 筋
-        int x = z - y * WIDTH;
+        int x = z - y * kWidth;
 
         // 色
         const char* sStone[2] = { "B", "W" };
-        prt(";%s", sStone[i & 1]);
+        Prt(";%s", sStone[i & 1]);
 
         // パス
         if (z == 0)
         {
-            prt("[]");
+            Prt("[]");
         }
         else
         {
-            prt("[%c%c]", x + 'a' - 1, y + 'a' - 1);
+            Prt("[%c%c]", x + 'a' - 1, y + 'a' - 1);
         }
 
         // 改行
         if (((i + 1) % 10) == 0)
-            prt("\n");
+            Prt("\n");
     }
 
     // 終端
-    prt(")\n");
+    Prt(")\n");
 }
 
 /// <summary>
 /// 黒番は原始モンテカルロ、白番はUCTで自己対戦
 /// </summary>
-void selfplay()
+void Position::Selfplay()
 {
     // 黒の手番
     int color = 1;
@@ -1812,7 +1873,7 @@ void selfplay()
         }
 
         // 次の一手
-        z = play_computer_move(color, search);
+        z = PlayComputerMove(color, search);
 
         // パスパスなら終局
         if (z == 0 && moves > 1 && record[moves - 2] == 0)
@@ -1823,47 +1884,47 @@ void selfplay()
             break; // too long
 
         // 手番の色反転
-        color = flip_color(color);
+        color = FlipColor(color);
     }
 
     // SGF形式で棋譜表示
-    print_sgf();
+    PrintSgf();
 }
 
 /// <summary>
 /// 黒手番でプレイアウトのテスト
 /// </summary>
-void test_playout()
+void Position::TestPlayout()
 {
     // テストプレイであるというフラグを立てます
     flag_test_playout = 1;
 
     // 黒手番でプレイアウト
-    playout(1);
+    Playout(1);
 
     // 盤表示
-    print_board();
+    PrintBoard();
 
     // SGF形式の棋譜を出力
-    print_sgf();
+    PrintSgf();
 }
 
 // GTPプロトコルの1行を読込むのに十分な文字列サイズ
-#define STR_MAX 256
+const int kStrMax = 256;
 
 // スペース区切りで3つ分まで読込む？
-#define TOKEN_MAX 3
+const int kTokenMax = 3;
 
 /// <summary>
 /// GTPプロトコルのループ
 /// </summary>
-void gtp_loop()
+void GtpLoop()
 {
     // 入力文字列バッファー
-    char str[STR_MAX];
+    char str[kStrMax];
 
     // スプリットされた文字列のリスト
-    char sa[TOKEN_MAX][STR_MAX];
+    char sa[kTokenMax][kStrMax];
 
     // コマンドはスペース区切り
     char seps[] = " ";
@@ -1881,10 +1942,10 @@ void gtp_loop()
     for (;;)
     {
         // 標準入力から文字列読取
-        if (fgets(str, STR_MAX, stdin) == NULL)
+        if (fgets(str, kStrMax, stdin) == NULL)
             break;
 
-        //  prt("gtp<-%s",str);
+        //  Prt("gtp<-%s",str);
 
         // 文字列のスプリットをして、結果を sa配列に格納しています
         count = 0;
@@ -1893,7 +1954,7 @@ void gtp_loop()
         {
             strcpy(sa[count], token);
             count++;
-            if (count == TOKEN_MAX)
+            if (count == kTokenMax)
                 break;
             token = strtok(NULL, seps);
         }
@@ -1903,13 +1964,13 @@ void gtp_loop()
         {
             // 無視
             //    int new_board_size = atoi( sa[1] );
-            send_gtp("= \n\n");
+            SendGtp("= \n\n");
         }
         // 盤を初期化してください
         else if (strstr(sa[0], "clear_board"))
         {
-            init_board();
-            send_gtp("= \n\n");
+            position.InitBoard();
+            SendGtp("= \n\n");
         }
         // アプリケーションを終了してください
         else if (strstr(sa[0], "quit"))
@@ -1919,29 +1980,29 @@ void gtp_loop()
         // GTPプロトコルのバージョンを返してください
         else if (strstr(sa[0], "protocol_version"))
         {
-            send_gtp("= 2\n\n");
+            SendGtp("= 2\n\n");
         }
         // 思考エンジンの名前を返してください
         else if (strstr(sa[0], "name"))
         {
-            send_gtp("= your_program_name\n\n");
+            SendGtp("= your_program_name\n\n");
         }
         // 思考エンジンのバージョンを返してください
         else if (strstr(sa[0], "version"))
         {
-            send_gtp("= 0.0.1\n\n");
+            SendGtp("= 0.0.1\n\n");
         }
         // 対応しているコマンドの改行区切りリストを返してください
         else if (strstr(sa[0], "list_commands"))
         {
-            send_gtp("= boardsize\nclear_board\nquit\nprotocol_version\n"
+            SendGtp("= boardsize\nclear_board\nquit\nprotocol_version\n"
                 "name\nversion\nlist_commands\nkomi\ngenmove\nplay\n\n");
         }
         // コミを n にしてください
         else if (strstr(sa[0], "komi"))
         {
             komi = atof(sa[1]);
-            send_gtp("= \n\n");
+            SendGtp("= \n\n");
         }
         // 着手の座標を返してください
         else if (strstr(sa[0], "genmove"))
@@ -1950,8 +2011,8 @@ void gtp_loop()
             if (tolower(sa[1][0]) == 'w')
                 color = 2;
 
-            z = play_computer_move(color, SEARCH_UCT);
-            send_gtp("= %s\n\n", get_char_z(z));
+            z = position.PlayComputerMove(color, SEARCH_UCT);
+            SendGtp("= %s\n\n", GetCharZ(z));
         }
         // 指定の色の石を、指定の座標に置いてください
         else if (strstr(sa[0], "play"))
@@ -1964,16 +2025,16 @@ void gtp_loop()
             if (ax >= 'i')
                 x--;
             y = atoi(&sa[2][1]);
-            z = get_z(x, B_SIZE - y + 1);
+            z = GetZ(x, kBoardSize - y + 1);
             if (tolower(sa[2][0]) == 'p')
                 z = 0; // pass
-            add_moves(z, color, 0);
-            send_gtp("= \n\n");
+            position.AddMoves(z, color, 0);
+            SendGtp("= \n\n");
         }
         // その他のコマンドには未対応です
         else
         {
-            send_gtp("? unknown_command\n\n");
+            SendGtp("? unknown_command\n\n");
         }
     }
 }
@@ -1988,27 +2049,27 @@ int main()
     //srand( (unsigned)time( NULL ) );
 
     // 盤の初期化
-    init_board();
+    position.InitBoard();
 
     // ハッシュボードの初期化
-    make_hashboard();
+    MakeHashboard();
 
     // 自己対戦
     if (0)
     {
-        selfplay();
+        position.Selfplay();
         return 0;
     }
 
     // プレイアウトのテスト
     if (0)
     {
-        test_playout();
+        position.TestPlayout();
         return 0;
     }
 
     // GTPプロトコルのループ
-    gtp_loop();
+    GtpLoop();
 
     return 0;
 }
