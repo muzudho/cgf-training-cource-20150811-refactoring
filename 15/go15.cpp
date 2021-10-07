@@ -12,6 +12,7 @@
 #include "timeMan.h"
 #include "child.h"
 #include "node.h"
+#include "upperConfidenceTree.h"
 
 Position position = Position();
 
@@ -934,17 +935,7 @@ int Position::PrimitiveMonteCalro(int color)
 // `UCT` - 探索と知識利用のバランスを取る手法
 
 // 以下、探索木全体を保存
-/// <summary>
-/// `UCT` - 探索と知識利用のバランスを取る手法
-/// </summary>
-class UpperConfidenceTree {
-public:
-    int CreateNode(int prev_z);
-    int SelectBestUcb(int node_n, int color);
-    void UpdateRave(Node* pN, int color, int current_depth, double win);
-    int SearchUct(int color, int node_n);
-    int GetBestUct(int color);
-}uct;
+UpperConfidenceTree uct = UpperConfidenceTree();
 
 /// <summary>
 /// 最大10000局面まで

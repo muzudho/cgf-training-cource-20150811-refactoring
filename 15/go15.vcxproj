@@ -126,6 +126,7 @@
     <ClInclude Include="go15.h" />
     <ClInclude Include="node.h" />
     <ClInclude Include="timeMan.h" />
+    <ClInclude Include="upperConfidenceTree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
