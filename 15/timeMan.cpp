@@ -1,10 +1,10 @@
 #include <time.h>
 
 /// <summary>
-/// ƒ~ƒŠ•b‚ğæ“¾‚µ‚Ü‚·B
+/// ãƒŸãƒªç§’ã‚’å–å¾—ã—ã¾ã™ã€‚
 /// get mill second time.
-/// 
-/// clock()‚ÍLinux‚È‚çƒvƒƒZƒX‚ÌCPUŠÔ‚ğ•Ô‚µ‚Ü‚·‚ªAƒ}ƒ‹ƒ`ƒXƒŒƒbƒh‚Å‚Í“KØ‚Å‚Í‚ ‚è‚Ü‚¹‚ñB
+///
+/// clock()ã¯Linuxãªã‚‰ãƒ—ãƒ­ã‚»ã‚¹ã®CPUæ™‚é–“ã‚’è¿”ã—ã¾ã™ãŒã€ãƒãƒ«ãƒã‚¹ãƒ¬ãƒƒãƒ‰ã§ã¯é©åˆ‡ã§ã¯ã‚ã‚Šã¾ã›ã‚“ã€‚
 /// clock() returns process CPU times on Linux, not proper when multi thread.
 /// </summary>
 /// <returns></returns>
@@ -26,8 +26,8 @@ double GetClock()
 }
 
 /// <summary>
-/// •b‚ğæ“¾‚µ‚Ü‚·B
-/// get sec time. 
+/// ç§’ã‚’å–å¾—ã—ã¾ã™ã€‚
+/// get sec time.
 /// </summary>
 /// <param name="ct"></param>
 /// <returns></returns>
