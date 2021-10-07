@@ -118,12 +118,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="common.cpp" />
     <ClCompile Include="go15.cpp" />
     <ClCompile Include="node.cpp" />
+    <ClCompile Include="position.cpp" />
     <ClCompile Include="timeMan.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="child.h" />
+    <ClInclude Include="common.h" />
     <ClInclude Include="go15.h" />
     <ClInclude Include="node.h" />
     <ClInclude Include="position.h" />

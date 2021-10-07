@@ -1,11 +1,8 @@
 // sprintf is Err in VC++
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <stdarg.h>
 #include <limits.h>
 #include <ctype.h>
 #include "go15.h"
@@ -14,6 +11,7 @@
 #include "node.h"
 #include "upperConfidenceTree.h"
 #include "position.h"
+#include "common.h"
 
 Position position = Position();
 
@@ -26,22 +24,6 @@ int path[kDMax];
 /// UCTで使われる経路（パス）の先頭がらn番目(0開始)
 /// </summary>
 int depth;
-
-/// <summary>
-/// プリントなんだけれども 標準エラー出力に出してる？
-/// サーバーに出力したくない文字列を表示したいときに使う？
-/// </summary>
-/// <param name="fmt">書式か？</param>
-/// <param name="">可変長引数</param>
-void Prt(const char* fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    //{ FILE *fp = fopen("out.txt","a"); if ( fp ) { vfprt( fp, fmt, ap ); fclose(fp); } }
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-}
 
 /// <summary>
 /// Go Text Protocol のコマンドを標準出力に出力します
@@ -164,80 +146,6 @@ void HashXor(int z, int color)
 }
 
 /// <summary>
-/// x, y を z（座標；配列のインデックス） に変換
-/// </summary>
-/// <param name="x">is (1 &lt;= x &lt;= 9)</param>
-/// <param name="y">is (1 &lt;= y &lt;= 9)</param>
-/// <returns></returns>
-int GetZ(int x, int y)
-{
-    return y * kWidth + x;
-}
-
-/// <summary>
-/// for display only
-/// </summary>
-/// <param name="z">座標</param>
-/// <returns>人が読める形の座標</returns>
-int Get81(int z)
-{
-    // 段
-    int y = z / kWidth;
-
-    // 筋
-    // 106 = 9*11 + 7 = (x,y)=(7,9) -> 79
-    int x = z - y * kWidth;
-
-    // パスなら0を返します
-    if (z == 0)
-        return 0;
-
-    // 人が読める形の座標
-    // x*100+y for 19x19
-    return x * 10 + y;
-}
-
-/// <summary>
-/// 同じ命令文で2回呼び出さないでください。
-/// don't call twice in same sentence.
-///
-/// like Prt("z0=%s,z1=%s\n",GetCharZ(z0),GetCharZ(z1));
-/// </summary>
-/// <param name="z">座標</param>
-/// <returns>人が読める形の座標（文字列）</returns>
-char* GetCharZ(int z)
-{
-    // 筋
-    int x;
-
-    // 段
-    int y;
-
-    // 筋アルファベット
-    int ax;
-
-    // 文字列バッファー
-    static char buf[16];
-
-    // パス
-    sprintf(buf, "pass");
-    if (z == 0)
-        return buf;
-
-    y = z / kWidth;
-    x = z - y * kWidth;
-    ax = x - 1 + 'A';
-
-    // 筋に I列は無いので詰めます
-    if (ax >= 'I')
-        ax++; // from 'A' to 'T', excluding 'I'
-
-    sprintf(buf, "%c%d", ax, kBoardSize + 1 - y);
-
-    return buf;
-}
-
-/// <summary>
 /// 石の色を反転
 /// </summary>
 /// <param name="col">石の色</param>
@@ -245,55 +153,6 @@ char* GetCharZ(int z)
 int FlipColor(int col)
 {
     return 3 - col;
-}
-
-/// <summary>
-/// 盤の描画
-/// </summary>
-void Position::PrintBoard()
-{
-    // 筋
-    int x;
-
-    // 段
-    int y;
-
-    // 石
-    const char* str[4] = { ".", "X", "O", "#" };
-
-    // 着手点
-    int played_z = 0;
-
-    // 手番の色
-    int color = 0;
-
-    // 1手前の着手
-    if (moves > 0)
-    {
-        played_z = record[moves - 1];
-        color = Board[played_z];
-    }
-
-    Prt("   ");
-    //for (x=0;x<kBoardSize;x++) Prt("%d",x+1);
-    for (x = 0; x < kBoardSize; x++)
-        Prt("%c", 'A' + x + (x > 7));
-    Prt("\n");
-    for (y = 0; y < kBoardSize; y++)
-    {
-        //  Prt("%2d ",y+1);
-        Prt("%2d ", kBoardSize - y);
-        for (x = 0; x < kBoardSize; x++)
-        {
-            Prt("%s", str[Board[GetZ(x + 1, y + 1)]]);
-        }
-        if (y == 4)
-            Prt("  ko_z=%s,moves=%d", GetCharZ(ko_z), moves);
-        if (y == 7)
-            Prt("  play_z=%s, color=%d", GetCharZ(played_z), color);
-
-        Prt("\n");
-    }
 }
 
 /// <summary>
