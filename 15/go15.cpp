@@ -746,21 +746,6 @@ int Position::PrimitiveMonteCalro(int color)
 UpperConfidenceTree uct = UpperConfidenceTree();
 
 /// <summary>
-/// 最大10000局面まで
-/// </summary>
-const int kNodeMax = 10000;
-
-/// <summary>
-/// ノードのリスト
-/// </summary>
-Node nodeList[kNodeMax];
-
-/// <summary>
-/// ノードのリストのサイズ。登録局面数
-/// </summary>
-int node_num = 0;
-
-/// <summary>
 /// illegal move
 /// </summary>
 const int ILLEGAL_Z = -1;
@@ -1111,11 +1096,6 @@ double Position::CountTotalTime()
 }
 
 /// <summary>
-/// number of uct loop
-/// </summary>
-int uct_loop = 1000000;
-
-/// <summary>
 /// 一番良く打たれた一手の座標を返します
 /// </summary>
 /// <param name="color">手番の色</param>
@@ -1138,13 +1118,13 @@ int Position::GetBestUct(int color)
         prev_z = record[moves - 1];
 
     // ノードリストの要素数
-    node_num = 0;
+    uct.node_num = 0;
 
     // 次のノードのインデックス。ここでは0。現図を作成しています
     next = uct.CreateNode(prev_z);
 
-    // とりあえず UCT探索（search_uct）を、uct_loop回繰り返します
-    for (i = 0; i < uct_loop; i++)
+    // とりあえず UCT探索（search_uct）を、uct.loop回繰り返します
+    for (i = 0; i < uct.loop; i++)
     {
         // 現図を退避
         int board_copy[kBoardMax];
@@ -1167,7 +1147,7 @@ int Position::GetBestUct(int color)
     }
 
     // 次のノード
-    pN = &nodeList[next];
+    pN = &uct.nodeList[next];
 
     // 子ノード全部確認
     for (i = 0; i < pN->child_num; i++)
@@ -1188,7 +1168,7 @@ int Position::GetBestUct(int color)
     // ベストなノードの座標
     best_z = pN->children[best_i].z;
     Prt("best_z=%d,rate=%6.3f,games=%4d,playouts=%d,nodes=%d\n",
-        Get81(best_z), pN->children[best_i].rate, max, all_playouts, node_num);
+        Get81(best_z), pN->children[best_i].rate, max, all_playouts, uct.node_num);
 
     return best_z;
 }
