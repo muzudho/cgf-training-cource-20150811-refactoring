@@ -1053,27 +1053,7 @@ int UpperConfidenceTree::SearchUct(int color, int node_n)
     return win;
 }
 
-/// <summary>
-/// 開始時刻
-/// </summary>
-double start_time;
-
-/// <summary>
-/// 時間制限秒
-/// </summary>
-double time_limit_sec = 3.0;
-
-/// <summary>
-/// 時間切れかどうか
-/// </summary>
-/// <returns>時間切れなら1を、そうでなければ0</returns>
-int IsTimeOver()
-{
-    if (GetSpendTime(start_time) >= time_limit_sec)
-        return 1;
-
-    return 0;
-}
+TimeMan timeMan = TimeMan();
 
 /// <summary>
 /// 時間計
@@ -1142,7 +1122,7 @@ int Position::GetBestUct(int color)
         memcpy(Board, board_copy, sizeof(Board));
 
         // 時間切れなら抜けます
-        if (IsTimeOver())
+        if (timeMan.IsTimeOver())
             break;
     }
 
@@ -1258,15 +1238,15 @@ int Position::PlayComputerMove(int color, int search)
     double base_time = 60 * 10; // 10 minutes
     double left_time = base_time - total_time;
     int div = 12; // 40 ... 13x13, 70 ... 19x19
-    time_limit_sec = left_time / div;
+    timeMan.time_limit_sec = left_time / div;
     if (left_time < 60)
-        time_limit_sec = 1.0;
+        timeMan.time_limit_sec = 1.0;
     if (left_time < 20)
-        time_limit_sec = 0.2;
-    Prt("time_limit_sec=%.1f, total=%.1f, left=%.1f\n", time_limit_sec, total_time, left_time);
+        timeMan.time_limit_sec = 0.2;
+    Prt("time_limit_sec=%.1f, total=%.1f, left=%.1f\n", timeMan.time_limit_sec, total_time, left_time);
 
     // 開始時刻
-    start_time = GetClock();
+    timeMan.start_time = timeMan.GetClock();
 
     // プレイアウト回数
     all_playouts = 0;
@@ -1298,7 +1278,7 @@ int Position::PlayComputerMove(int color, int search)
     //PrintCriticality();
 
     // 消費時間（秒）？
-    sec = GetSpendTime(start_time);
+    sec = timeMan.GetSpendTime(timeMan.start_time);
 
     // 情報表示
     Prt("z=%s,color=%d,moves=%d,playouts=%d, %.1f sec(%.0f po/sec),depth=%d\n",

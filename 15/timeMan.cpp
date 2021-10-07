@@ -1,14 +1,7 @@
 #include <time.h>
+#include "timeMan.h"
 
-/// <summary>
-/// ミリ秒を取得します。
-/// get mill second time.
-///
-/// clock()はLinuxならプロセスのCPU時間を返しますが、マルチスレッドでは適切ではありません。
-/// clock() returns process CPU times on Linux, not proper when multi thread.
-/// </summary>
-/// <returns></returns>
-double GetClock()
+double TimeMan::GetClock()
 {
 #if defined(_MSC_VER)
     return clock();
@@ -25,15 +18,17 @@ double GetClock()
 #endif
 }
 
-/// <summary>
-/// 秒を取得します。
-/// get sec time.
-/// </summary>
-/// <param name="ct"></param>
-/// <returns></returns>
-double GetSpendTime(double ct)
+double TimeMan::GetSpendTime(double ct)
 {
     //int div = CLOCKS_PER_SEC;	// 1000 ...VC, 1000000 ...gcc
     int div = 1000;
     return (double)(GetClock() + 1 - ct) / div;
+}
+
+int TimeMan::IsTimeOver()
+{
+    if (GetSpendTime(start_time) >= time_limit_sec)
+        return 1;
+
+    return 0;
 }
