@@ -29,5 +29,11 @@
     <ClInclude Include="timeMan.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="child.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="node.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

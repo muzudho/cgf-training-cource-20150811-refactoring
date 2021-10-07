@@ -10,6 +10,8 @@
 #include <ctype.h>
 #include "go15.h"
 #include "timeMan.h"
+#include "child.h"
+#include "node.h"
 
 Position position = Position();
 
@@ -930,75 +932,6 @@ int Position::PrimitiveMonteCalro(int color)
 
 // following are for UCT(Upper Confidence Tree)
 // `UCT` - 探索と知識利用のバランスを取る手法
-
-/// <summary>
-/// 手を保存するための構造体
-/// </summary>
-class Child {
-public:
-    /// <summary>
-    /// 手の場所（move position）
-    /// </summary>
-    int z;
-
-    /// <summary>
-    /// 試した回数（number of games）
-    /// </summary>
-    int games;
-
-    /// <summary>
-    /// 勝率（winrate）
-    /// </summary>
-    double rate;
-
-    /// <summary>
-    /// (RAVE) number of games
-    /// </summary>
-    int rave_games;
-
-    /// <summary>
-    /// (RAVE) winrate
-    /// </summary>
-    double rave_rate;
-
-    /// <summary>
-    /// ノードのリストのインデックス。次のノード（next node）を指す
-    /// </summary>
-    int next;
-
-    /// <summary>
-    /// 人間的に盤面上の3x3のパターンの形を考えると悪手なので、着手の確率を下げるための割引率 0.0～1.0（shape bonus）
-    /// </summary>
-    double bonus;
-};
-
-// 最大の子数。9路なら82個。+1 for PASS
-#define kChildSize (kBoardSize * kBoardSize + 1)
-
-/// <summary>
-/// 局面を保存するものです
-/// </summary>
-class Node {
-public:
-    /// <summary>
-    /// 実際の子どもの数
-    /// </summary>
-    int child_num;
-
-    Child children[kChildSize];
-
-    /// <summary>
-    /// 何回の対局でこのノードに来たか（子の合計）
-    /// </summary>
-    int child_games_sum;
-
-    /// <summary>
-    /// レーブ？な対局数？（子の合計）
-    /// </summary>
-    int child_rave_games_sum;
-
-    void AddChild(int z, double bonus);
-};
 
 // 以下、探索木全体を保存
 /// <summary>

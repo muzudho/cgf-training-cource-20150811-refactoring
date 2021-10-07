@@ -122,7 +122,9 @@
     <ClCompile Include="timeMan.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="child.h" />
     <ClInclude Include="go15.h" />
+    <ClInclude Include="node.h" />
     <ClInclude Include="timeMan.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
