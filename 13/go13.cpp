@@ -979,7 +979,7 @@ public:
 };
 
 // 最大の子数。9路なら82個。+1 for PASS
-#define CHILD_SIZE (kBoardSize * kBoardSize + 1)
+#define kChildSize (kBoardSize * kBoardSize + 1)
 
 /// <summary>
 /// 局面を保存する構造体
@@ -991,7 +991,7 @@ public:
     /// </summary>
     int child_num;
 
-    Child children[CHILD_SIZE];
+    Child children[kChildSize];
 
     /// <summary>
     /// 何回の対局でこのノードに来たか（子の合計）
@@ -1012,16 +1012,6 @@ public:
 /// 最大10000局面まで
 /// </summary>
 const int kNodeMax = 10000;
-
-/// <summary>
-/// ノードのリスト
-/// </summary>
-Node nodeList[kNodeMax];
-
-/// <summary>
-/// ノードのリストのサイズ。登録局面数
-/// </summary>
-int node_num = 0;
 
 /// <summary>
 /// no next nodeList
@@ -1059,6 +1049,28 @@ void Node::AddChild(int z, double bonus)
 }
 
 /// <summary>
+/// `UCT` - 探索と知識利用のバランスを取る手法
+/// </summary>
+class UpperConfidenceTree {
+public:
+
+    /// <summary>
+    /// ノードのリスト
+    /// </summary>
+    Node nodeList[kNodeMax];
+
+    /// <summary>
+    /// ノードのリストのサイズ。登録局面数
+    /// </summary>
+    int node_num = 0;
+
+    int SelectBestUcb(int node_n, int color);
+    void UpdateRave(Node* pN, int color, int current_depth, double win);
+    int SearchUct(int color, int node_n);
+    int GetBestUct(int color);
+}uct;
+
+/// <summary>
 /// create new nodeList.
 /// 空点を全部追加。
 /// PASSも追加。
@@ -1083,14 +1095,14 @@ int Position::CreateNode(int prev_z)
     Node* pN;
 
     // これ以上増やせません
-    if (node_num == kNodeMax)
+    if (uct.node_num == kNodeMax)
     {
         Prt("nodeList over Err\n");
         exit(0);
     }
 
     // 末尾の未使用の要素
-    pN = &nodeList[node_num];
+    pN = &uct.nodeList[uct.node_num];
     pN->child_num = 0;
     pN->child_games_sum = 0;
     pN->child_rave_games_sum = 0;
@@ -1130,22 +1142,11 @@ int Position::CreateNode(int prev_z)
     }
 
     // 末尾に１つ追加した分、リストのサイズ１つ追加
-    node_num++;
+    uct.node_num++;
 
     // 最後の要素を指すインデックスを返します
-    return node_num - 1;
+    return uct.node_num - 1;
 }
-
-/// <summary>
-/// `UCT` - 探索と知識利用のバランスを取る手法
-/// </summary>
-class UpperConfidenceTree {
-public:
-    int SelectBestUcb(int node_n, int color);
-    void UpdateRave(Node* pN, int color, int current_depth, double win);
-    int SearchUct(int color, int node_n);
-    int GetBestUct(int color);
-}uct;
 
 /// <summary>
 /// UCBが最大の手を返します。
@@ -1511,18 +1512,18 @@ void Position::AddMoves(int z, int color)
 /// <summary>
 /// 原始モンテカルロ探索
 /// </summary>
-const int SEARCH_PRIMITIVE = 0;
+const int kSearchPrimitive = 0;
 
 /// <summary>
 /// UCT探索
 /// </summary>
-const int SEARCH_UCT = 1;
+const int kSearchUct = 1;
 
 /// <summary>
 /// コンピューターの指し手
 /// </summary>
 /// <param name="color">手番の色</param>
-/// <param name="search">探索方法。SEARCH_PRIMITIVE または SEARCH_UCT</param>
+/// <param name="search">探索方法。SEARCH_PRIMITIVE または kSearchUct</param>
 /// <returns>座標</returns>
 int Position::GetComputerMove(int color, int search)
 {
@@ -1541,7 +1542,7 @@ int Position::GetComputerMove(int color, int search)
     // 盤領域をゼロ クリアー？
     memset(board_area_sum, 0, sizeof(board_area_sum));
 
-    if (search == SEARCH_UCT)
+    if (search == kSearchUct)
     {
         // UCTを使ったゲームプレイ
         z = uct.GetBestUct(color);
@@ -1629,11 +1630,11 @@ void Position::Selfplay()
         // 黒番、白番ともにUCT探索
         if (color == 1)
         {
-            search = SEARCH_UCT; //SEARCH_PRIMITIVE;
+            search = kSearchUct; //kSearchPrimitive;
         }
         else
         {
-            search = SEARCH_UCT;
+            search = kSearchUct;
         }
 
         // 次の一手
@@ -1675,11 +1676,15 @@ void Position::TestPlayout()
     PrintSgf();
 }
 
-// GTPプロトコルの1行を読込むのに十分な文字列サイズ
-#define STR_MAX 256
+/// <summary>
+/// GTPプロトコルの1行を読込むのに十分な文字列サイズ
+/// </summary>
+const int kStrMax = 256;
 
-// スペース区切りで3つ分まで読込む？
-#define TOKEN_MAX 3
+/// <summary>
+/// スペース区切りで3つ分まで読込む？
+/// </summary>
+const int kTokenMax = 3;
 
 /// <summary>
 /// GTPプロトコルのループ
@@ -1687,10 +1692,10 @@ void Position::TestPlayout()
 void GtpLoop()
 {
     // 入力文字列バッファー
-    char str[STR_MAX];
+    char str[kStrMax];
 
     // スプリットされた文字列のリスト
-    char sa[TOKEN_MAX][STR_MAX];
+    char sa[kTokenMax][kStrMax];
 
     // コマンドはスペース区切り
     char seps[] = " ";
@@ -1708,7 +1713,7 @@ void GtpLoop()
     for (;;)
     {
         // 標準入力から文字列読取
-        if (fgets(str, STR_MAX, stdin) == NULL)
+        if (fgets(str, kStrMax, stdin) == NULL)
             break;
 
         //  Prt("gtp<-%s",str);
@@ -1720,7 +1725,7 @@ void GtpLoop()
         {
             strcpy(sa[count], token);
             count++;
-            if (count == TOKEN_MAX)
+            if (count == kTokenMax)
                 break;
             token = strtok(NULL, seps);
         }
@@ -1777,7 +1782,7 @@ void GtpLoop()
             if (tolower(sa[1][0]) == 'w')
                 color = 2;
 
-            z = position.GetComputerMove(color, SEARCH_UCT);
+            z = position.GetComputerMove(color, kSearchUct);
             position.AddMoves(z, color);
             SendGtp("= %s\n\n", GetCharZ(z));
         }
