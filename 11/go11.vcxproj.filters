@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="go11.c">
+    <ClCompile Include="go11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
