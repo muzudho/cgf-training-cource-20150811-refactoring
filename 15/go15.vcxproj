@@ -119,6 +119,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="go15.cpp" />
+    <ClCompile Include="node.cpp" />
     <ClCompile Include="timeMan.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -3,6 +3,11 @@
 #include "child.h"
 
 /// <summary>
+/// no next node
+/// </summary>
+const int NODE_EMPTY = -1;
+
+/// <summary>
 /// 局面を保存するものです
 /// </summary>
 class Node

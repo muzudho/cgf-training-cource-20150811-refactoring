@@ -1,11 +1,6 @@
 #pragma once
 
 /// <summary>
-/// コミ
-/// </summary>
-double komi = 6.5;
-
-/// <summary>
 /// n路盤
 /// </summary>
 const int kBoardSize = 9;
@@ -46,6 +41,11 @@ const int kDMax = 1000;
 class Position
 {
 public:
+    /// <summary>
+    /// コミ
+    /// </summary>
+    double komi = 6.5;
+
     /// <summary>
     /// 盤
     /// </summary>

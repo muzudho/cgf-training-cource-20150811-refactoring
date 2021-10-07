@@ -1,5 +1,7 @@
 #pragma once
 
+#include "go15.h"
+
 /// <summary>
 /// 最大の子数。9路なら82個。+1 for PASS
 /// </summary>
