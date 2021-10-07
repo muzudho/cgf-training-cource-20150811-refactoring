@@ -13,6 +13,7 @@
 #include "child.h"
 #include "node.h"
 #include "upperConfidenceTree.h"
+#include "position.h"
 
 Position position = Position();
 

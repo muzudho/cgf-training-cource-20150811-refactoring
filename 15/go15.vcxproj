@@ -126,6 +126,7 @@
     <ClInclude Include="child.h" />
     <ClInclude Include="go15.h" />
     <ClInclude Include="node.h" />
+    <ClInclude Include="position.h" />
     <ClInclude Include="timeMan.h" />
     <ClInclude Include="upperConfidenceTree.h" />
   </ItemGroup>
