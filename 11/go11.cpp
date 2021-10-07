@@ -220,6 +220,10 @@ public:
     int CreateNode(int prev_z);
     void InitBoard();
     void AddMoves(int z, int color);
+    void Selfplay();
+    void TestPlayout();
+    void PrintSgf();
+    int GetComputerMove(int color, int search);
 
 }position;
 
@@ -774,10 +778,10 @@ void Position::AddMoves(int z, int color)
 // `UCT` - 探索と知識利用のバランスを取る手法
 
 /// <summary>
-/// 手を保存するための構造体
+/// 手を保存するためのものです
 /// </summary>
-typedef struct
-{
+class Child {
+public:
     /// <summary>
     /// 手の場所（move position）
     /// </summary>
@@ -812,30 +816,37 @@ typedef struct
     /// 人間的に盤面上の3x3のパターンの形を考えると悪手なので、着手の確率を下げるための割引率 0.0～1.0（shape bonus）
     /// </summary>
     double bonus;
-} CHILD;
+};
 
-// 最大の子数。9路なら82個。+1 for PASS
-#define CHILD_SIZE (kBoardSize * kBoardSize + 1)
+/// <summary>
+/// 最大の子数。9路なら82個。+1 for PASS
+/// </summary>
+const int kChildSize = (kBoardSize * kBoardSize + 1);
 
 /// <summary>
 /// 局面を保存する構造体
 /// </summary>
-typedef struct
-{
+class Node {
+public:
     /// <summary>
     /// 実際の子どもの数
     /// </summary>
     int child_num;
-    CHILD children[CHILD_SIZE];
+
+    Child children[kChildSize];
+
     /// <summary>
     /// 何回の対局でこのノードに来たか（子の合計）
     /// </summary>
     int child_games_sum;
+
     /// <summary>
     /// レーブ？な対局数？（子の合計）
     /// </summary>
     int child_rave_games_sum;
-} NODE;
+
+    void AddChild(int z, double bonus);
+};
 
 /// <summary>
 /// ノードのリストのサイズ。登録局面数
@@ -845,19 +856,19 @@ int node_num = 0;
 /// <summary>
 /// ノードのリスト
 /// </summary>
-NODE nodeList[kNodeMax];
+Node nodeList[kNodeMax];
 
 // 以下、探索木全体を保存
 
 /// <summary>
 /// no next node
 /// </summary>
-const int NODE_EMPTY = -1;
+const int kNodeEmpty = -1;
 
 /// <summary>
 /// illegal move
 /// </summary>
-const int ILLEGAL_Z = -1;
+const int kIllegalZ = -1;
 
 /// <summary>
 /// リストの末尾に要素を追加。手を追加。
@@ -869,19 +880,19 @@ const int ILLEGAL_Z = -1;
 /// 人間的に考えて悪手なので、着手の確率を下げるための割引率 0.0～1.0
 /// from 0 to 10, good move has big bonus
 /// </param>
-void AddChild(NODE* pN, int z, double bonus)
+void Node::AddChild(int z, double bonus)
 {
     // 新しい要素のインデックス
-    int n = pN->child_num;
-    pN->children[n].z = z;
-    pN->children[n].games = 0;
-    pN->children[n].rate = 0;
-    pN->children[n].rave_games = 0;
-    pN->children[n].rave_rate = 0;
-    pN->children[n].next = NODE_EMPTY;
-    pN->children[n].bonus = bonus;
+    int n = this->child_num;
+    this->children[n].z = z;
+    this->children[n].games = 0;
+    this->children[n].rate = 0;
+    this->children[n].rave_games = 0;
+    this->children[n].rave_rate = 0;
+    this->children[n].next = kNodeEmpty;
+    this->children[n].bonus = bonus;
     // ノードのリストのサイズ更新
-    pN->child_num++;
+    this->child_num++;
 }
 
 /// <summary>
@@ -894,7 +905,7 @@ void AddChild(NODE* pN, int z, double bonus)
 int Position::CreateNode(int prev_z)
 {
     int x, y, z, i, j;
-    NODE* pN;
+    Node* pN;
 
     // これ以上増やせません
     if (node_num == kNodeMax)
@@ -916,19 +927,19 @@ int Position::CreateNode(int prev_z)
             z = GetZ(x + 1, y + 1);
             if (Board[z] != 0)
                 continue;
-            AddChild(pN, z, 0);
+            pN->AddChild(z, 0);
         }
-    AddChild(pN, 0, 0); // add PASS
+    pN->AddChild(0, 0); // add PASS
 
     // sort children
     for (i = 0; i < pN->child_num - 1; i++)
     {
         double max_b = pN->children[i].bonus;
         int max_i = i;
-        CHILD tmp;
+        Child tmp;
         for (j = i + 1; j < pN->child_num; j++)
         {
-            CHILD* c = &pN->children[j];
+            Child* c = &pN->children[j];
             if (max_b >= c->bonus)
                 continue;
             max_b = c->bonus;
@@ -949,6 +960,17 @@ int Position::CreateNode(int prev_z)
 }
 
 /// <summary>
+/// `UCT` - 探索と知識利用のバランスを取る手法
+/// </summary>
+class UpperConfidenceTree {
+public:
+    int SelectBestUcb(int node_n, int color);
+    void UpdateRave(Node* pN, int color, int current_depth, double win);
+    int SearchUct(int color, int node_n);
+    int GetBestUct(int color);
+}uct;
+
+/// <summary>
 /// UCBが最大の手を返します。
 /// 一度も試していない手は優先的に選びます。
 /// 定数 Ｃ は実験で決めてください。
@@ -957,9 +979,9 @@ int Position::CreateNode(int prev_z)
 /// <param name="node_n">ノードのリストのインデックス</param>
 /// <param name="color">手番の色</param>
 /// <returns>ノードのリストのインデックス。選択した子ノードを指します</returns>
-int select_best_ucb(int node_n, int color)
+int UpperConfidenceTree::SelectBestUcb(int node_n, int color)
 {
-    NODE* pN = &nodeList[node_n];
+    Node* pN = &nodeList[node_n];
     int select = -1;
     double max_ucb = -999;
     double ucb = 0, ucb_rave = 0, beta;
@@ -968,10 +990,10 @@ int select_best_ucb(int node_n, int color)
     // 子要素の数だけ繰り返します
     for (i = 0; i < pN->child_num; i++)
     {
-        CHILD* c = &pN->children[i];
+        Child* c = &pN->children[i];
 
         // 非合法手の座標なら無視
-        if (c->z == ILLEGAL_Z)
+        if (c->z == kIllegalZ)
             continue;
 
         if (c->games == 0)
@@ -1024,7 +1046,7 @@ int select_best_ucb(int node_n, int color)
 /// <param name="color">手番の色</param>
 /// <param name="current_depth">経路の深さ</param>
 /// <param name="win">勝率</param>
-void update_rave(NODE* pN, int color, int current_depth, double win)
+void UpperConfidenceTree::UpdateRave(Node* pN, int color, int current_depth, double win)
 {
     int played_color[kBoardMax];
     int i, z;
@@ -1043,10 +1065,10 @@ void update_rave(NODE* pN, int color, int current_depth, double win)
 
     for (i = 0; i < pN->child_num; i++)
     {
-        CHILD* c = &pN->children[i];
+        Child* c = &pN->children[i];
 
         // 非合法手は無視
-        if (c->z == ILLEGAL_Z)
+        if (c->z == kIllegalZ)
             continue;
 
         // 相手の色なら無視
@@ -1066,20 +1088,20 @@ void update_rave(NODE* pN, int color, int current_depth, double win)
 /// <param name="color">手番の色。最初は考えているプレイヤーの色</param>
 /// <param name="node_n">ノードのリストのインデックス。最初は0</param>
 /// <returns>手番の勝率</returns>
-int search_uct(int color, int node_n)
+int UpperConfidenceTree::SearchUct(int color, int node_n)
 {
     // この局面
-    NODE* pN = &nodeList[node_n];
+    Node* pN = &nodeList[node_n];
 
     // 最善の一手（子ノード）
-    CHILD* c = NULL;
+    Child* c = NULL;
     int select, z, err, win, current_depth;
 
     // とりあえず打ってみる
     for (;;)
     {
         // 最善の一手（子ノード）のインデックス
-        select = select_best_ucb(node_n, color);
+        select = SelectBestUcb(node_n, color);
 
         // 最善の一手（子ノード）
         c = &pN->children[select];
@@ -1094,8 +1116,8 @@ int search_uct(int color, int node_n)
         if (err == 0)
             break;
 
-        // 非合法手なら、 ILLEGAL_Z をセットして ループをやり直し
-        c->z = ILLEGAL_Z; // select other move
+        // 非合法手なら、 kIllegalZ をセットして ループをやり直し
+        c->z = kIllegalZ; // select other move
     }
 
     current_depth = depth;
@@ -1117,15 +1139,15 @@ int search_uct(int color, int node_n)
     else
     {
         // 子ノードが葉なら、さらに延長
-        if (c->next == NODE_EMPTY)
+        if (c->next == kNodeEmpty)
             c->next = position.CreateNode(c->z);
 
         // 手番をひっくり返して UCT探索（ネガマックス形式）。勝率はひっくり返して格納
-        win = -search_uct(FlipColor(color), c->next);
+        win = -SearchUct(FlipColor(color), c->next);
     }
 
     // レーブの更新
-    update_rave(pN, color, current_depth, win);
+    UpdateRave(pN, color, current_depth, win);
 
     // 勝率の更新（update winrate）
     c->rate = (c->rate * c->games + win) / (c->games + 1);
@@ -1147,11 +1169,11 @@ int uct_loop = 1000;
 /// </summary>
 /// <param name="color">手番の色</param>
 /// <returns>一番良く打たれた一手の座標</returns>
-int get_best_uct(int color)
+int UpperConfidenceTree::GetBestUct(int color)
 {
     int next, i, best_z, best_i = -1;
     int max = -999;
-    NODE* pN;
+    Node* pN;
 
     // 前回の着手座標？
     int prev_z = 0;
@@ -1177,7 +1199,7 @@ int get_best_uct(int color)
         depth = 0;
 
         // UCT探索
-        search_uct(color, next);
+        SearchUct(color, next);
 
         // 現図を復元
         position.ko_z = ko_z_copy;
@@ -1189,7 +1211,7 @@ int get_best_uct(int color)
     for (i = 0; i < pN->child_num; i++)
     {
         // 子ノード
-        CHILD* c = &pN->children[i];
+        Child* c = &pN->children[i];
         // 最大対局数（一番打たれた手ということ）の更新
         if (c->games > max)
         {
@@ -1210,20 +1232,20 @@ int get_best_uct(int color)
 /// <summary>
 /// 原始モンテカルロ探索
 /// </summary>
-const int SEARCH_PRIMITIVE = 0;
+const int kSearchPrimitive = 0;
 
 /// <summary>
 /// UCT探索
 /// </summary>
-const int SEARCH_UCT = 1;
+const int kSearchUct = 1;
 
 /// <summary>
 /// コンピューターの指し手
 /// </summary>
 /// <param name="color">手番の色</param>
-/// <param name="search">探索方法。SEARCH_PRIMITIVE または SEARCH_UCT</param>
+/// <param name="search">探索方法。SEARCH_PRIMITIVE または kSearchUct</param>
 /// <returns>座標</returns>
-int get_computer_move(int color, int search)
+int Position::GetComputerMove(int color, int search)
 {
     // 現在時刻
     clock_t st = clock();
@@ -1233,22 +1255,22 @@ int get_computer_move(int color, int search)
     int z;
 
     // プレイアウト回数
-    position.all_playouts = 0;
-    if (search == SEARCH_UCT)
+    this->all_playouts = 0;
+    if (search == kSearchUct)
     {
         // UCTを使ったゲームプレイ
-        z = get_best_uct(color);
+        z = uct.GetBestUct(color);
     }
     else
     {
         // 原始モンテカルロでゲームプレイ
-        z = position.PrimitiveMonteCalro(color);
+        z = this->PrimitiveMonteCalro(color);
     }
     // 消費時間（秒）
     t = (double)(clock() + 1 - st) / CLOCKS_PER_SEC;
     // 情報表示
     Prt("z=%s,color=%d,moves=%d,playouts=%d, %.1f sec(%.0f po/sec),depth=%d\n",
-        GetCharZ(z), color, position.moves, position.all_playouts, t, position.all_playouts / t, depth);
+        GetCharZ(z), color, this->moves, this->all_playouts, t, this->all_playouts / t, depth);
 
     return z;
 }
@@ -1256,7 +1278,7 @@ int get_computer_move(int color, int search)
 /// <summary>
 /// print SGF game record
 /// </summary>
-void print_sgf()
+void Position::PrintSgf()
 {
     int i;
 
@@ -1264,10 +1286,10 @@ void print_sgf()
     Prt("(;GM[1]SZ[%d]KM[%.1f]PB[]PW[]\n", kBoardSize, komi);
 
     // 指し手出力
-    for (i = 0; i < position.moves; i++)
+    for (i = 0; i < this->moves; i++)
     {
         // 座標
-        int z = position.record[i];
+        int z = this->record[i];
         // 段
         int y = z / kWidth;
         // 筋
@@ -1296,7 +1318,7 @@ void print_sgf()
 /// <summary>
 /// 黒番は原始モンテカルロ、白番はUCTで自己対戦
 /// </summary>
-void selfplay()
+void Position::Selfplay()
 {
     // 黒の手番
     int color = 1;
@@ -1310,66 +1332,71 @@ void selfplay()
         // 黒番、白番ともにUCT探索
         if (color == 1)
         {
-            search = SEARCH_UCT; //SEARCH_PRIMITIVE;
+            search = kSearchUct; //kSearchPrimitive;
         }
         else
         {
-            search = SEARCH_UCT;
+            search = kSearchUct;
         }
 
         // 次の一手
-        z = get_computer_move(color, search);
+        z = this->GetComputerMove(color, search);
 
         // 棋譜に書込み
-        position.AddMoves(z, color);
+        this->AddMoves(z, color);
 
         // パスパスなら終局
-        if (z == 0 && position.moves > 1 && position.record[position.moves - 2] == 0)
+        if (z == 0 && this->moves > 1 && this->record[this->moves - 2] == 0)
             break;
 
         // 300手を超えても終局
-        if (position.moves > 300)
+        if (this->moves > 300)
             break; // too long
 
         // 手番の色反転
         color = FlipColor(color);
     }
 
-    print_sgf();
+    PrintSgf();
 }
 
 /// <summary>
 /// 黒手番でプレイアウトのテスト
 /// </summary>
-void test_playout()
+void Position::TestPlayout()
 {
-    position.flag_test_playout = 1;
+    this->flag_test_playout = 1;
 
     // 黒手番でプレイアウト
-    position.Playout(1);
+    this->Playout(1);
 
     // 盤表示
-    position.PrintBoard();
+    this->PrintBoard();
 
     // SGF形式の棋譜を出力
-    print_sgf();
+    this->PrintSgf();
 }
 
-// GTPプロトコルの1行を読込むのに十分な文字列サイズ
-#define STR_MAX 256
-// スペース区切りで3つ分まで読込む？
-#define TOKEN_MAX 3
+/// <summary>
+/// GTPプロトコルの1行を読込むのに十分な文字列サイズ
+/// </summary>
+const int kStrMax = 256;
+
+/// <summary>
+/// スペース区切りで3つ分まで読込む？
+/// </summary>
+const int kTokenMax = 3;
 
 /// <summary>
 /// GTPプロトコルのループ
 /// </summary>
-void gtp_loop()
+void GtpLoop()
 {
     // 入力文字列バッファー
-    char str[STR_MAX];
+    char str[kStrMax];
 
     // スプリットされた文字列のリスト
-    char sa[TOKEN_MAX][STR_MAX];
+    char sa[kTokenMax][kStrMax];
 
     // コマンドはスペース区切り
     char seps[] = " ";
@@ -1387,7 +1414,7 @@ void gtp_loop()
     for (;;)
     {
         // 標準入力から文字列読取
-        if (fgets(str, STR_MAX, stdin) == NULL)
+        if (fgets(str, kStrMax, stdin) == NULL)
             break;
 
         //  Prt("gtp<-%s",str);
@@ -1399,7 +1426,7 @@ void gtp_loop()
         {
             strcpy(sa[count], token);
             count++;
-            if (count == TOKEN_MAX)
+            if (count == kTokenMax)
                 break;
             token = strtok(NULL, seps);
         }
@@ -1456,7 +1483,7 @@ void gtp_loop()
             if (tolower(sa[1][0]) == 'w')
                 color = 2;
 
-            z = get_computer_move(color, SEARCH_UCT);
+            z = position.GetComputerMove(color, kSearchUct);
             position.AddMoves(z, color);
             SendGtp("= %s\n\n", GetCharZ(z));
         }
@@ -1500,19 +1527,19 @@ int main()
     // 自己対戦
     if (0)
     {
-        selfplay();
+        position.Selfplay();
         return 0;
     }
 
     // プレイアウトのテスト
     if (0)
     {
-        test_playout();
+        position.TestPlayout();
         return 0;
     }
 
     // GTPプロトコルのループ
-    gtp_loop();
+    GtpLoop();
 
     return 0;
 }
