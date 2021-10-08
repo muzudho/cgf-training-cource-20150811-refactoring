@@ -1448,7 +1448,7 @@ void GtpLoop()
             token = strtok(NULL, seps);
         }
 
-        // 盤のサイズを n にしてください
+        // 盤のサイズを n路 にしてください
         if (strstr(sa[0], "boardsize"))
         {
             // 無視
@@ -1461,7 +1461,7 @@ void GtpLoop()
             position.InitBoard();
             SendGtp("= \n\n");
         }
-        // アプリケーションを終了してください
+        // 思考エンジンを終了してください
         else if (strstr(sa[0], "quit"))
         {
             break;
@@ -1487,13 +1487,13 @@ void GtpLoop()
             SendGtp("= boardsize\nclear_board\nquit\nprotocol_version\n"
                 "name\nversion\nlist_commands\nkomi\ngenmove\nplay\n\n");
         }
-        // コミを n にしてください
+        // コミを ｘ にしてください
         else if (strstr(sa[0], "komi"))
         {
             position.komi = atof(sa[1]);
             SendGtp("= \n\n");
         }
-        // 着手の座標を返してください
+        // あなたが着手する座標を返してください
         else if (strstr(sa[0], "genmove"))
         {
             int color = 1;
@@ -1503,7 +1503,7 @@ void GtpLoop()
             z = position.PlayComputerMove(color, SEARCH_UCT);
             SendGtp("= %s\n\n", GetCharZ(z));
         }
-        // 指定の色の石を、指定の座標に置いてください
+        // 石の色と座標を指定しますので、置いてください
         else if (strstr(sa[0], "play"))
         { // "play b c4", "play w d17"
             int color = 1;
